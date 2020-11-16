@@ -141,8 +141,9 @@ def create_spec_dataset(spec_path = '../../../Spectrogram_mat_data/', save_path 
 
         # transforms the badtime time into corresponding index on spectrogram. In doing so, converts
         # that entire col to NaN values to ensure that window is discarded during saving. 
-        badtime_idx = []
-
+        badtime_idx = []    
+        # TODO: apparently these are the bad times only for 1 channel? Add all badtime indices 
+        # for every channel next. 
         for badtime in badtimes[0]:
             idx = (np.abs(times-badtime)).argmin()
             badtime_idx.append(idx)
@@ -176,8 +177,8 @@ def create_spec_dataset(spec_path = '../../../Spectrogram_mat_data/', save_path 
                 if not torch.isnan(arr.sum()) and arr.shape[1] == window:
                     np.save(save_path + 'move/' + night + '_' + rec + '_' + str(ch) + '_win'+str(i) +'_move.npy',arr.numpy()) 
 
-    total_nonmvmt_samples = len(os.lisdir(save_path + 'sleep')) 
-    total_mvmt_samples = len(os.lisdir(save_path + 'move')) 
+    total_nonmvmt_samples = len(os.listdir(save_path + 'sleep')) 
+    total_mvmt_samples = len(os.listdir(save_path + 'move')) 
            	
     print("Done! Total non-movement = ", total_nonmvmt_samples, ' and total movement = ', total_mvmt_samples)
 
