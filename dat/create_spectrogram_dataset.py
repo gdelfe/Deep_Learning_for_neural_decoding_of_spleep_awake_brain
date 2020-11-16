@@ -20,7 +20,7 @@ from scipy.io import loadmat
 # first, a util function used if there are no transitions in the currently loaded in NE file
 
 
-def no_transitions(file,night,rec):
+def no_transitions(file,night,rec,spec_path):
     ## Given a file, figure out what label it is for entire recording, save it all as that
 
     prev_file = 'N10W1dn1_'+night+'_rec'+ '00' + str(int(rec) - 1)+'.mat'
@@ -93,7 +93,7 @@ def create_spec_dataset(spec_path = '../../../Spectrogram_mat_data/', save_path 
            # print("Skipping ", file, " (no mstart)")
             print("This spec is either entirely moving or not moving. So let's check the prior rec. ")
             try:
-                m_start, m_stop = no_transitions(file,night,rec)  #TODO: add night before too, in case both are no transition. 
+                m_start, m_stop = no_transitions(file,night,rec,spec_path)  #TODO: add night before too, in case both are no transition. 
                 print("Was able to use prior rec, saving.")
             except Exception as e:
                 print(e)
