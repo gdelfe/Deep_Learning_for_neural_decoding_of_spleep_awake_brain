@@ -97,6 +97,7 @@ def create_spec_dataset(spec_path = '../../../Spectrogram_mat_data/', save_path 
                 print("Was able to use prior rec, saving.")
             except Exception as e:
                 print(e)
+                print("Unable to read ", file)
                 continue
         else:
             m_start = m_start[0]
