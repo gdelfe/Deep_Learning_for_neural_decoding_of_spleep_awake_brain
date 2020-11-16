@@ -23,20 +23,20 @@ from scipy.io import loadmat
 def no_transitions(file,night,rec,spec_path):
     ## Given a file, figure out what label it is for entire recording, save it all as that
     try: 
-    prev_file = 'N10W1dn1_'+night+'_rec'+ '00' + str(int(rec) - 1)+'.mat'
-    
-    # load in prev file, check transitions
-    if os.path.exists(spec_path + prev_file):
-        prev_spec_data = loadmat(spec_path + prev_file)
-        ti = prev_spec_data['Spec_per_Ch']['Ch1'][0][0]['ti'][0][0]
-        vid_stop = ti[0][-1]/ 1000
-        m_stop = prev_spec_data['Spec_per_Ch']['Ch1'][0][0]['m_stop'][0][0][0][-1] #[0][0][6]
-    
-        if m_stop < vid_stop:
-            print('Monkey is sleeping for the entire new recording!')
-            
-            
-            return np.array([0]), np.array([0])
+        prev_file = 'N10W1dn1_'+night+'_rec'+ '00' + str(int(rec) - 1)+'.mat'
+        
+        # load in prev file, check transitions
+        if os.path.exists(spec_path + prev_file):
+            prev_spec_data = loadmat(spec_path + prev_file)
+            ti = prev_spec_data['Spec_per_Ch']['Ch1'][0][0]['ti'][0][0]
+            vid_stop = ti[0][-1]/ 1000
+            m_stop = prev_spec_data['Spec_per_Ch']['Ch1'][0][0]['m_stop'][0][0][0][-1] #[0][0][6]
+        
+            if m_stop < vid_stop:
+                print('Monkey is sleeping for the entire new recording!')
+                
+                
+                return np.array([0]), np.array([0])
 
     except:
         print("prev rec did not work. how about two recordings prior? ")
