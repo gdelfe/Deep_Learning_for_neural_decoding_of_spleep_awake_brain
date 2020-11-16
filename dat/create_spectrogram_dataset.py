@@ -36,7 +36,7 @@ def no_transitions(file,night,rec,spec_path):
                 print('Monkey is sleeping for the entire new recording!')
                 
                 
-                return np.array([0]), np.array([0])
+                return np.array([10000]), np.array([10000])
 
     except:
         print("prev rec did not work. how about two recordings prior? ")
@@ -53,7 +53,7 @@ def no_transitions(file,night,rec,spec_path):
                 print('Monkey is sleeping for the entire new recording!')
                 
                 
-                return np.array([0]), np.array([0])
+                return np.array([1000000]), np.array([100000])
 
 def create_spec_dataset(spec_path = '../../../Spectrogram_mat_data/', save_path = '../../data/', task='movement',window = 10):
     """
