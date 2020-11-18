@@ -53,7 +53,7 @@ def no_transitions(file,night,rec,spec_path):
                 
                 return np.array([1000000]), np.array([100000])
 
-def create_spec_dataset(spec_path = '../../../Spectrogram_mat_data/', save_path = '../../data/', task='movement',window = 10):
+def create_spec_dataset(spec_path = '../../../Spectrogram_mat_data/', save_path = '../../data_method2/', task='movement',window = 10):
     """
 
     Loads in, the night event files, and uses those to then split into whatever designated window size is 
@@ -114,19 +114,9 @@ def create_spec_dataset(spec_path = '../../../Spectrogram_mat_data/', save_path 
         else:
             m_start = m_start[0]
             m_stop = m_stop[0]
-
-
-        all_badtimes = np.array([])
-        specs = []
-        for ch in range(1,63): #iterate over the 62 channels saved, stack together and proceed with that. 
-            ztotSpec = spec_data['Spec_per_Ch']['Ch'+str(ch)][0][0]['ztotSpec'][0][0]
-            specs.append(ztotSpec)
-            
-            badtimes = spec['Spec_per_Ch']['Ch'+str(ch)][0][0]['badtimes'][0][0]
-            all_badtimes = np.concatenate([all_badtimes, badtimes.flatten()])
         
-        all_badtimes = np.array(list(set(all_badtimes)))
-        ztotSpecs = np.stack(specs)
+       # all_badtimes = np.array(list(set(all_badtimes)))
+        #ztotSpecs = np.stack(specs)
 
         # transforms the movement start and stop times into the corresponding index on the 
         # spectrogram. 
@@ -159,31 +149,48 @@ def create_spec_dataset(spec_path = '../../../Spectrogram_mat_data/', save_path 
         prior_mvmt_idx = 0 #initialize to 0, saves everything preceeding mvmt start idx to be non-movement
         for start_idx, stop_idx in zip(m_start_idx,m_stop_idx):
 
-            asleep = torch.from_numpy(ztotSpecs[:,int(round(prior_mvmt_idx)):int(round(start_idx)),:])
-            moving = torch.from_numpy(ztotSpecs[:,int(round(start_idx)):int(round(stop_idx)),:])
-            prior_mvmt_idx = stop_idx
 
 
-            asleeps = torch.split(asleep,split_size_or_sections=window,dim=1)
-            movings = torch.split(moving,split_size_or_sections=window,dim=1)
+            all_badtimes = np.array([])
+            for ch in range(1,63): #iterate over the 62 channels saved, stack together and proceed with that. 
+                ztotSpec = spec_data['Spec_per_Ch']['Ch'+str(ch)][0][0]['ztotSpec'][0][0]
+                specs.append(ztotSpec)
+                
+                badtimes = spec['Spec_per_Ch']['Ch'+str(ch)][0][0]['badtimes'][0][0]
+                #all_badtimes = np.concatenate([all_badtimes, badtimes.flatten()])
 
-            print("Total # of non-movement windows saved: ", len(asleeps)-1) #not exact, but still a good indicator for this phase. 
-            print("Total # of movement windows saved: ", len(movings)-1)
+                for badtime in badtimes:
+                    idx = (np.abs(times-badtime)).argmin()
+                    badtime_idx.append(idx)
 
-            # Now of these two arrays, split and save, assuming it does not include a badtime index
+                for idx in badtime_idx:
+                    ztotSpec[idx,:] = np.nan
 
-                                # loop over these windows and save 
-            for i, arr in enumerate(asleeps):
-                if not torch.isnan(arr.sum()) and arr.shape[1] == window:
-                    np.save(save_path + 'sleep/' + night + '_' + rec + '_' + str(ch) + '_win'+str(i) +'_sleep.npy',arr.numpy()) 
-            for i, arr in enumerate(movings):
-                if not torch.isnan(arr.sum()) and arr.shape[1] == window:
-                    np.save(save_path + 'move/' + night + '_' + rec + '_' + str(ch) + '_win'+str(i) +'_move.npy',arr.numpy()) 
+                asleep = torch.from_numpy(ztotSpec[int(round(prior_mvmt_idx)):int(round(start_idx)),:])
+                moving = torch.from_numpy(ztotSpec[int(round(start_idx)):int(round(stop_idx)),:])
+                prior_mvmt_idx = stop_idx
 
-    total_nonmvmt_samples = len(os.listdir(save_path + 'sleep')) 
-    total_mvmt_samples = len(os.listdir(save_path + 'move')) 
-            
-    print("Done! Total non-movement = ", total_nonmvmt_samples, ' and total movement = ', total_mvmt_samples)
+
+                asleeps = torch.split(asleep,split_size_or_sections=window,dim=1)
+                movings = torch.split(moving,split_size_or_sections=window,dim=1)
+
+                print("Total # of non-movement windows saved: ", len(asleeps)-1) #not exact, but still a good indicator for this phase. 
+                print("Total # of movement windows saved: ", len(movings)-1)
+
+                # Now of these two arrays, split and save, assuming it does not include a badtime index
+
+                                    # loop over these windows and save 
+                for i, arr in enumerate(asleeps):
+                    if not torch.isnan(arr.sum()) and arr.shape[1] == window:
+                        np.save(save_path + 'sleep/' + night + '_' + rec + '_' + str(ch) + '_win'+str(i) +'_sleep.npy',arr.numpy()) 
+                for i, arr in enumerate(movings):
+                    if not torch.isnan(arr.sum()) and arr.shape[1] == window:
+                        np.save(save_path + 'move/' + night + '_' + rec + '_' + str(ch) + '_win'+str(i) +'_move.npy',arr.numpy()) 
+
+        total_nonmvmt_samples = len(os.listdir(save_path + 'sleep')) 
+        total_mvmt_samples = len(os.listdir(save_path + 'move')) 
+                
+        print("Done! Total non-movement = ", total_nonmvmt_samples, ' and total movement = ', total_mvmt_samples)
 
 
 if __name__ == '__main__':
