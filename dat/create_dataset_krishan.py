@@ -25,7 +25,7 @@ from skimage import io
 from PIL import Image
 from scipy.io import loadmat
 
-save_path = '/mnt/pesaranlab/People/Capstone_students/Noah/datav3'
+save_path = '/mnt/pesaranlab/People/Capstone_students/Noah/datav3/'
 ch = 'na'
 window = 10 # 10 sec interval 
 # Loop through dates, and recs
