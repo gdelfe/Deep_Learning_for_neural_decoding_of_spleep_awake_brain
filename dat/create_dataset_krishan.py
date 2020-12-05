@@ -35,40 +35,43 @@ for night in nights:
         print("Checking ", night, ' ', rec)
         try: 
             NSV = loadmat('/vol/sas2b/Goose_Multiscale_M1_Wireless/'+night+'/'+rec+'/rec'+rec+'.NightStateVars.mat')
+
+
+
+            ztotSpec = NSV['UserData'][0][0]['ztotSpec']
+
+            sleep = NSV['UserData'][0][0]['SleepStates_noart'][0][:]
+            move = NSV['UserData'][0][0]['MovementStates_noart'][0][:]
+
+
+            for m in move:
+                start = m[0][0] 
+                stop = m[0][1]
+
+                mspec = torch.from_numpy(ztotSpec[:,start:stop])
+                mspecs = torch.split(mspec,10,dim=1)
+
+                # save each
+
+                for i, arr in enumerate(mspecs):
+                    if arr.shape[1] == window:
+                        np.save(save_path + 'move/' + night + '_' + rec + '_' + str(ch) + '_win'+str(i) +'_move.npy',arr.numpy())
+
+
+
+            for s in sleep:
+                start = s[0][0] 
+                stop = s[0][1]
+
+                sspec = torch.from_numpy(ztotSpec[:,start:stop])
+                sspecs = torch.split(sspec,10,dim=1)
+
+                # save each
+
+                for i, arr in enumerate(sspecs):
+                    if arr.shape[1] == window:
+                        np.save(save_path + 'sleep/' + night + '_' + rec + '_' + str(ch) + '_win'+str(i) +'_sleep.npy',arr.numpy())
+
         except Exception as e:
             print(e)
-            pass
-
-        ztotSpec = NSV['UserData'][0][0]['ztotSpec']
-
-        sleep = NSV['UserData'][0][0]['SleepStates_noart'][0][:]
-        move = NSV['UserData'][0][0]['MovementStates_noart'][0][:]
-
-
-        for m in move:
-            start = m[0][0] 
-            stop = m[0][1]
-
-            mspec = torch.from_numpy(ztotSpec[:,start:stop])
-            mspecs = torch.split(mspec,10,dim=1)
-
-            # save each
-
-            for i, arr in enumerate(mspecs):
-                if arr.shape[1] == window:
-                    np.save(save_path + 'move/' + night + '_' + rec + '_' + str(ch) + '_win'+str(i) +'_move.npy',arr.numpy())
-
-
-
-        for s in sleep:
-            start = s[0][0] 
-            stop = s[0][1]
-
-            sspec = torch.from_numpy(ztotSpec[:,start:stop])
-            sspecs = torch.split(sspec,10,dim=1)
-
-            # save each
-
-            for i, arr in enumerate(sspecs):
-                if arr.shape[1] == window:
-                    np.save(save_path + 'sleep/' + night + '_' + rec + '_' + str(ch) + '_win'+str(i) +'_sleep.npy',arr.numpy())
+            continue
