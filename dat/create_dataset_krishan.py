@@ -32,12 +32,12 @@ nights = ['180326','180327','180328','180329','180330','180331'] # all that are 
 recs = ['001','002','003','004','005','006','007','008','009']
 for night in nights:
     for rec in recs:
-    	print("Checking ", night, ' ', rec)
-    	try: 
+        print("Checking ", night, ' ', rec)
+        try: 
             NSV = loadmat('/vol/sas2b/Goose_Multiscale_M1_Wireless/'+night+'/'+rec+'/rec'+rec+'.NightStateVars.mat')
         except Exception as e:
-        	print(e)
-        	pass
+            print(e)
+            pass
 
         ztotSpec = NSV['UserData'][0][0]['ztotSpec']
 
