@@ -31,7 +31,7 @@ from skimage import io
 from PIL import Image
 from scipy.io import loadmat
 
-save_path = '/mnt/pesaranlab/People/Capstone_students/Noah/datav3/'
+save_path = '/mnt/pesaranlab/People/Capstone_students/Noah/datav4/'
 ch = 'na'
 window = 10 # 10 sec interval 
 # Loop through dates, and recs
@@ -44,22 +44,16 @@ for night in nights:
             # Add all other channels too, and concat. 
             NSV = loadmat('/vol/sas2b/Goose_Multiscale_M1_Wireless/'+night+'/'+rec+'/rec'+rec+'.NightStateVars.mat')
 
-            spec_data = loadmat('../../../Spectrogram_mat_data/' + )
-
+            spec_data = loadmat('/mnt/pesaranlab/People/Capstone_students/Spectrogram_mat_data/N10W1dn1_'+night+'_'+rec+'.mat')
             specs = []
             for ch in range(1,63): #iterate over the 62 channels saved, stack together and proceed with that. 
                 ztotSpec = spec_data['Spec_per_Ch']['Ch'+str(ch)][0][0]['ztotSpec'][0][0]
                 specs.append(ztotSpec)
                 
-                badtimes = spec['Spec_per_Ch']['Ch'+str(ch)][0][0]['badtimes'][0][0]
-                all_badtimes = np.concatenate([all_badtimes, badtimes.flatten()])
-            
-            all_badtimes = np.array(list(set(all_badtimes)))
-
             # Compare these two, 
             ztotSpecs = np.stack(specs)
+            print('zts.shape=',ztotSpecs.shape)
             NSVztotSpec = NSV['UserData'][0][0]['ztotSpec']
-
 
 
 
