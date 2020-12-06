@@ -36,6 +36,18 @@ val_dates = ['1803238','180329','180330','180331','180410','180411','180412', '1
 
 class SpectrogramDataset(Dataset):
     def __init__(self, mode='train' ,version='v4',val_dates=val_dates):
+    	"""
+			Spectrogam PyTorch dataset object
+
+		Init contains the following arguments:
+
+		mode -- specify what split of the data
+
+		version -- specify which dataset to use, see above for a little more detail
+
+		val_dates -- some selected dates to use for just validation 
+
+    	"""
         self.version = version
         self.movement_files = os.listdir('/mnt/pesaranlab/People/Capstone_students/Noah/data'+version+'/move/')
         self.sleeping_files = os.listdir('/mnt/pesaranlab/People/Capstone_students/Noah/data'+version+'/sleep/')
