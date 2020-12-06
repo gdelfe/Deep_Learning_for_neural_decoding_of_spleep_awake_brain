@@ -38,7 +38,7 @@ class SpectrogramDataset(Dataset):
     def __init__(self, mode='train' ,version='v4',val_dates=val_dates):
         version = self.version
         self.moving_files = os.listdir('data'+version+'/move/')
-        self.sleeping_files = os.listdir('data'+version'/sleep/')
+        self.sleeping_files = os.listdir('data'+version+'/sleep/')
         all_files = self.sleeping_files + self.movement_files
         if mode == 'train':
             self.all_files = [f for f in all_files if f.split('_')[0] not in val_dates]
