@@ -36,9 +36,9 @@ val_dates = ['1803238','180329','180330','180331','180410','180411','180412', '1
 
 class SpectrogramDataset(Dataset):
     def __init__(self, mode='train' ,version='v4',val_dates=val_dates):
-    	version = self.version
+        version = self.version
         self.moving_files = os.listdir('data'+version+'/move/')
-		self.sleeping_files = os.listdir('data'+version'/sleep/')
+        self.sleeping_files = os.listdir('data'+version'/sleep/')
         all_files = self.sleeping_files + self.movement_files
         if mode == 'train':
             self.all_files = [f for f in all_files if f.split('_')[0] not in val_dates]
@@ -70,12 +70,12 @@ class SpectrogramDataset(Dataset):
 
 def create_dataloaders(version='v4',batch_size='36'):
 
-	train_dataset = SpectrogramDataset(mode='train',version=version)
-	valid_dataset = SpectrogramDataset(mode='valid',version=version)
+    train_dataset = SpectrogramDataset(mode='train',version=version)
+    valid_dataset = SpectrogramDataset(mode='valid',version=version)
 
 
-	train_loader = DataLoader(dataset = train_dataset, batch_size = batch_size, shuffle = True)
-	val_loader = DataLoader(dataset = valid_dataset, batch_size = batch_size, shuffle = False)
+    train_loader = DataLoader(dataset = train_dataset, batch_size = batch_size, shuffle = True)
+    val_loader = DataLoader(dataset = valid_dataset, batch_size = batch_size, shuffle = False)
 
 
-	return train_loader, val_loader
+    return train_loader, val_loader
