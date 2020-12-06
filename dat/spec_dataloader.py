@@ -68,7 +68,7 @@ class SpectrogramDataset(Dataset):
 
 
 
-def create_dataloaders(version='v4',batch_size='36'):
+def create_dataloaders(version='v4',batch_size=32):
 
     train_dataset = SpectrogramDataset(mode='train',version=version)
     valid_dataset = SpectrogramDataset(mode='valid',version=version)
