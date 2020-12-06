@@ -8,6 +8,12 @@ Depends on loading in Krishan's NightStateVars.mat files which contain the perio
 
 
 
+TODO:
+
+Add all 62 channels, will the artifact removal piece here also help?
+
+
+Run again for more dates, as well as for Jester + Goose. 
 """
 
 import numpy as np
@@ -35,11 +41,28 @@ for night in nights:
     for rec in recs:
         print("Checking ", night, ' ', rec)
         try: 
+            # Add all other channels too, and concat. 
             NSV = loadmat('/vol/sas2b/Goose_Multiscale_M1_Wireless/'+night+'/'+rec+'/rec'+rec+'.NightStateVars.mat')
 
+            spec_data = loadmat('../../../Spectrogram_mat_data/' + )
+
+            specs = []
+            for ch in range(1,63): #iterate over the 62 channels saved, stack together and proceed with that. 
+                ztotSpec = spec_data['Spec_per_Ch']['Ch'+str(ch)][0][0]['ztotSpec'][0][0]
+                specs.append(ztotSpec)
+                
+                badtimes = spec['Spec_per_Ch']['Ch'+str(ch)][0][0]['badtimes'][0][0]
+                all_badtimes = np.concatenate([all_badtimes, badtimes.flatten()])
+            
+            all_badtimes = np.array(list(set(all_badtimes)))
+
+            # Compare these two, 
+            ztotSpecs = np.stack(specs)
+            NSVztotSpec = NSV['UserData'][0][0]['ztotSpec']
 
 
-            ztotSpec = NSV['UserData'][0][0]['ztotSpec']
+
+
 
             sleep = NSV['UserData'][0][0]['SleepStates_noart'][0][:]
             move = NSV['UserData'][0][0]['MovementStates_noart'][0][:]
@@ -49,7 +72,7 @@ for night in nights:
                 start = m[0][0] 
                 stop = m[0][1]
 
-                mspec = torch.from_numpy(ztotSpec[:,start:stop])
+                mspec = torch.from_numpy(ztotSpecs[:,start:stop,:])
                 mspecs = torch.split(mspec,10,dim=1)
 
                 # save each
@@ -64,7 +87,7 @@ for night in nights:
                 start = s[0][0] 
                 stop = s[0][1]
 
-                sspec = torch.from_numpy(ztotSpec[:,start:stop])
+                sspec = torch.from_numpy(ztotSpecs[:,start:stop,:])
                 sspecs = torch.split(sspec,10,dim=1)
 
                 # save each
