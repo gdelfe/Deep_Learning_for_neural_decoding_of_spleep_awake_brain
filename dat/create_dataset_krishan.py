@@ -44,7 +44,7 @@ for night in nights:
             # Add all other channels too, and concat. 
             NSV = loadmat('/vol/sas2b/Goose_Multiscale_M1_Wireless/'+night+'/'+rec+'/rec'+rec+'.NightStateVars.mat')
 
-            spec_data = loadmat('/mnt/pesaranlab/People/Capstone_students/Spectrogram_mat_data/N10W1dn1_'+night+'_'+rec+'.mat')
+            spec_data = loadmat('/mnt/pesaranlab/People/Capstone_students/Spectrogram_mat_data/N10W1dn1_'+night+'_rec'+rec+'.mat')
             specs = []
             for ch in range(1,63): #iterate over the 62 channels saved, stack together and proceed with that. 
                 ztotSpec = spec_data['Spec_per_Ch']['Ch'+str(ch)][0][0]['ztotSpec'][0][0]
