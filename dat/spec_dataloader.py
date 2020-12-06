@@ -37,7 +37,7 @@ val_dates = ['1803238','180329','180330','180331','180410','180411','180412', '1
 class SpectrogramDataset(Dataset):
     def __init__(self, mode='train' ,version='v4',val_dates=val_dates):
         self.version = version
-        self.moving_files = os.listdir('/mnt/pesaranlab/People/Capstone_students/Noah/data'+version+'/move/')
+        self.movement_files = os.listdir('/mnt/pesaranlab/People/Capstone_students/Noah/data'+version+'/move/')
         self.sleeping_files = os.listdir('/mnt/pesaranlab/People/Capstone_students/Noah/data'+version+'/sleep/')
         all_files = self.sleeping_files + self.movement_files
         if mode == 'train':
