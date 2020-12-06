@@ -37,8 +37,8 @@ val_dates = ['1803238','180329','180330','180331','180410','180411','180412', '1
 class SpectrogramDataset(Dataset):
     def __init__(self, mode='train' ,version='v4',val_dates=val_dates):
         self.version = version
-        self.moving_files = os.listdir('data'+version+'/move/')
-        self.sleeping_files = os.listdir('data'+version+'/sleep/')
+        self.moving_files = os.listdir('/mnt/pesaranlab/People/Capstone_students/Noah/data'+version+'/move/')
+        self.sleeping_files = os.listdir('/mnt/pesaranlab/People/Capstone_students/Noah/data'+version+'/sleep/')
         all_files = self.sleeping_files + self.movement_files
         if mode == 'train':
             self.all_files = [f for f in all_files if f.split('_')[0] not in val_dates]
@@ -56,7 +56,7 @@ class SpectrogramDataset(Dataset):
         mvmt_type  = self.all_files[idx].split('_')[-1].split('.')[0] #check this out
         date = self.all_files[idx].split('_')[0]
         rec = self.all_files[idx].split('_')[1].split('_')[0]
-        spec = torch.from_numpy(np.load('data'+self.version+'/'+ mvmt_type +'/' +self.all_files[idx])) 
+        spec = torch.from_numpy(np.load('/mnt/pesaranlab/People/Capstone_students/Noah/data'+self.version+'/'+ mvmt_type +'/' +self.all_files[idx])) 
         if mvmt_type == 'move':
             label = torch.Tensor([0])
         elif mvmt_type == 'sleep':
