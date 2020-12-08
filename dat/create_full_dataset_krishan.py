@@ -75,7 +75,7 @@ for night in nights:
                 stop_idx = (np.abs(times-stop)).argmin()
                 
                 sleep_states_idx.append([start_idx, stop_idx])
-
+            badtime_idx = []
             for badtime in all_badtimes:
                  idx = (np.abs(times-badtime)).argmin()
                  badtime_idx.append(idx)
