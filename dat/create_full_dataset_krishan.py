@@ -101,7 +101,7 @@ for night in nights:
                     if not torch.isnan(arr.sum()) and arr.shape[1] == window:
                         np.save(save_path + 'sleep/' + night + '_' + rec + '_' + str(ch) + '_win'+str(i) +'_sleep.npy',arr.numpy())
    
-            for s in move_states_idx:
+            for s in movement_states_idx:
                 start = s[0]
                 stop = s[1]
 
