@@ -34,6 +34,8 @@ from scipy.io import loadmat
 save_path = '/mnt/pesaranlab/People/Capstone_students/Noah/datav4/'
 ch = 'na'
 window = 10 # 10 sec interval 
+
+krishan_only = True # use Krishan files for spec, instead of ours.  
 # Loop through dates, and recs
 nights = ['180326','180327','180328','180329','180330','180331'] # all that are processed. I think it's enough. 
 recs = ['001','002','003','004','005','006','007','008','009']
