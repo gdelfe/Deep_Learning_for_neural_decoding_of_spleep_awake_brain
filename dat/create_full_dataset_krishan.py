@@ -46,7 +46,7 @@ for night in nights:
             for ch in range(1,63): #iterate over the 62 channels saved, stack together and proceed with that. 
                 ztotSpec = spec_data['Spec_per_Ch']['Ch'+str(ch)][0][0]['ztotSpec'][0][0]
                 specs.append(ztotSpec)
-                badtimes = spec['Spec_per_Ch']['Ch'+str(ch)][0][0]['badtimes'][0][0]
+                badtimes = spec_data['Spec_per_Ch']['Ch'+str(ch)][0][0]['badtimes'][0][0]
                 all_badtimes = np.concatenate([all_badtimes, badtimes.flatten()])
     
             
