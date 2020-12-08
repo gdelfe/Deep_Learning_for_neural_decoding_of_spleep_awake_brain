@@ -40,6 +40,7 @@ for night in nights:
             movement_states = NSV['UserData'][0][0]['NeuralRecMovementStates'][0]
             sleep_states = NSV['UserData'][0][0]['NeuralRecSleepStates'][0]
             spec_data = loadmat('/mnt/pesaranlab/People/Capstone_students/Spectrogram_mat_data/N10W1dn1_'+night+'_rec'+rec+'.mat')
+            times = spec_data['Spec_per_Ch'][0,0]['Ch1'][0,0]['ti'][0][:] // 1000
             specs = []
             all_badtimes = np.array([])
 
