@@ -37,8 +37,8 @@ for night in nights:
         try: 
             # Add all other channels too, and concat. 
             NSV = loadmat('/vol/sas2b/Goose_Multiscale_M1_Wireless/'+night+'/'+rec+'/rec'+rec+'.NightStateVars.mat')
-            movement_states = NSV['UserData'][0][0]['NeuralRecMovementStates'][0]
-            sleep_states = NSV['UserData'][0][0]['NeuralRecSleepStates'][0]
+            movement_states = NSV['UserData'][0][0]['MovementStates_noart_noOOF_wrt_neural'][0]
+            sleep_states = NSV['UserData'][0][0]['SleepStates_noart_noOOF_wrt_neural'][0]
             spec_data = loadmat('/mnt/pesaranlab/People/Capstone_students/Spectrogram_mat_data/N10W1dn1_'+night+'_rec'+rec+'.mat')
             times = spec_data['Spec_per_Ch'][0,0]['Ch1'][0,0]['ti'][0][:] // 1000
             specs = []
