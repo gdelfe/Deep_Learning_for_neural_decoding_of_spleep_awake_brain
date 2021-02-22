@@ -18,13 +18,25 @@ from scipy.io import loadmat
 val_dates = ['180328','180329']
 test_dates = ['180330','180331']
 
-
 class SpectrogramDataset(Dataset):
-    def __init__(self, mode='train', version='_Goose_1st', val_dates=val_dates, CH=None):
+    def __init__(self, mode='train', version='_Goose_1st', val_dates=val_dates, CH=None, upsample=False):
         self.CH = CH
         self.version = version
-        self.movement_files = os.listdir('/mnt/pesaranlab/People/Capstone_students/Yue/data'+version+'/move/')
-        self.sleeping_files = os.listdir('/mnt/pesaranlab/People/Capstone_students/Yue/data'+version+'/sleep/')
+        self.movement_files = os.listdir('/mnt/pesaranlab/People/Capstone_students/Yue/data/data'+version+'/move/')
+        self.sleeping_files = os.listdir('/mnt/pesaranlab/People/Capstone_students/Yue/data/data'+version+'/sleep/')
+        if upsample:
+            diff = len(self.sleeping_files)-len(self.movement_files)
+            try:
+                d = 0
+                while d < diff:
+                    ind = random.randint(0, len(self.movement_files)-1)
+                    x = self.movement_files[ind]
+                    x_date = x.split('_')[0]
+                    if x_date not in val_dates+test_dates:
+                        self.movement_files.append(x)
+                        d += 1
+            except ValueError:
+                print('Movoment instance more than sleep instances!')
         all_files = self.sleeping_files + self.movement_files
         if mode == 'train':
             self.all_files = [f for f in all_files if f.split('_')[0] not in val_dates+test_dates]
@@ -41,7 +53,7 @@ class SpectrogramDataset(Dataset):
         date = self.all_files[idx].split('_')[0]
         rec = self.all_files[idx].split('_')[1].split('_')[0]
         time = float(self.all_files[idx].split('_')[3][4:])
-        path = '/mnt/pesaranlab/People/Capstone_students/Yue/'
+        path = '/mnt/pesaranlab/People/Capstone_students/Yue/data/'
         spec = torch.from_numpy(np.load(path+'data'+self.version+'/'+ mvmt_type +'/' +self.all_files[idx])) 
         if mvmt_type == 'move':
             label = torch.Tensor([0])
