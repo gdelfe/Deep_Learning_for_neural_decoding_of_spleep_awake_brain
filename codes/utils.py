@@ -12,18 +12,15 @@ import pandas as pd
 from skimage import io
 from PIL import Image
 from scipy.io import loadmat
+import random
 
-
-#selected subset of dates. 
-val_dates = ['180328','180329']
-test_dates = ['180330','180331']
 
 class SpectrogramDataset(Dataset):
-    def __init__(self, mode='train', version='_Goose_1st', val_dates=val_dates, CH=None, upsample=False):
+    def __init__(self, file_path, val_dates, test_dates, mode='train', version='_Goose_1st', CH=None, upsample=False):
         self.CH = CH
         self.version = version
-        self.movement_files = os.listdir('/mnt/pesaranlab/People/Capstone_students/Yue/data/data'+version+'/move/')
-        self.sleeping_files = os.listdir('/mnt/pesaranlab/People/Capstone_students/Yue/data/data'+version+'/sleep/')
+        self.movement_files = os.listdir(file_path+'data'+version+'/move/')
+        self.sleeping_files = os.listdir(file_path+'data'+version+'/sleep/')
         if upsample:
             diff = len(self.sleeping_files)-len(self.movement_files)
             try:
@@ -53,7 +50,7 @@ class SpectrogramDataset(Dataset):
         date = self.all_files[idx].split('_')[0]
         rec = self.all_files[idx].split('_')[1].split('_')[0]
         time = float(self.all_files[idx].split('_')[3][4:])
-        path = '/mnt/pesaranlab/People/Capstone_students/Yue/data/'
+        path = file_path
         spec = torch.from_numpy(np.load(path+'data'+self.version+'/'+ mvmt_type +'/' +self.all_files[idx])) 
         if mvmt_type == 'move':
             label = torch.Tensor([0])
@@ -68,11 +65,11 @@ class SpectrogramDataset(Dataset):
             return torch.transpose(spec, 2, 1), label, date, rec, time
 
 
-def create_dataloaders(version='v5', batch_size=32, CH=None):
+def create_dataloaders(val_dates, test_dates, version='v5', batch_size=32, CH=None, upsample=False):
 
-    train_dataset = SpectrogramDataset(mode='train',version=version, CH=CH)
-    valid_dataset = SpectrogramDataset(mode='valid',version=version, CH=CH)
-    test_dataset = SpectrogramDataset(mode='test',version=version, CH=CH)
+    train_dataset = SpectrogramDataset(val_dates=val_dates, test_dates=test_dates, mode='train', version=version, CH=CH, upsample=upsample)
+    valid_dataset = SpectrogramDataset(val_dates=val_dates, test_dates=test_dates, mode='valid', version=version, CH=CH, upsample=upsample)
+    test_dataset = SpectrogramDataset(val_dates=val_dates, test_dates=test_dates, mode='test', version=version, CH=CH, upsample=upsample)
 
     train_loader = DataLoader(dataset = train_dataset, batch_size = batch_size, shuffle = True)
     val_loader = DataLoader(dataset = valid_dataset, batch_size = batch_size, shuffle = False)
@@ -81,49 +78,96 @@ def create_dataloaders(version='v5', batch_size=32, CH=None):
     return train_loader, val_loader, test_loader
 
 
-class LogReg(nn.Module):
+class GLM(nn.Module):
     def __init__(self, input_dim=100*10*62, output_dim=1):
-        super(LogReg, self).__init__()
-        self.linear = torch.nn.Linear(input_dim, output_dim)
+        super(GLM, self).__init__()
+        self.linear = torch.nn.Linear(input_dim, output_dim) # by default, add an intercept
 
     def forward(self, x):
         x = x.reshape([x.shape[0], 1, -1]).float()
-        outputs = torch.sigmoid(self.linear(x))
-        
+        outputs = self.linear(x)
         return outputs
+
     
-def get_accuracy(model, loader, device='cuda'):
+def get_pred(outputs, model_type='LR'):
+    if model_type == 'SVM':
+        pred = (outputs > 0) * 1.0
+    else:
+        pred = (torch.sigmoid(outputs) > 0.5) * 1.0
+    return pred
+    
+    
+def get_accuracy(model, loader, model_type='LR', collect_result=False, device='cuda'):
     correct = 0
     total = 0
+    preds, preds_probs, labs, cases_wrong = [], [], [], []
     with torch.no_grad():
         for data, labels, dates, recs, times in loader:
             data = data.to(device)
             labels = labels.to(device).float()
             outputs = model(data)
-            predictions = []
-            for o in outputs:
-                if o.item() > .5:
-                    predictions.append(1)
-                else:
-                    predictions.append(0)
-            predictions = np.array(predictions)
-            total += labels.size(0)
-            correct += (predictions.flatten() == labels.flatten().cpu().numpy()).sum().item()
+            predictions = get_pred(outputs, model_type=model_type)
+            outputs = outputs.flatten().detach().cpu().numpy()
+            predictions = predictions.flatten().detach().cpu().numpy()
+            labels[labels == -1] = 0
+            labels = labels.flatten().cpu().numpy()
+            total += len(labels)
+            correct += (predictions == labels).sum()
             
-    return correct / total
+            if collect_result:
+                preds.append(predictions)
+                preds_probs.append(outputs)
+                labs.append(labels)
+                
+                indices_wrong = np.argwhere(np.array(predictions != labels)).flatten()
+                if len(indices_wrong) == 0:
+                    continue
+                dates_wrong = np.array(dates)[indices_wrong]
+                recs_wrong = np.array(recs)[indices_wrong]
+                times_wrong = np.array(times)[indices_wrong]
+                labels_wrong = np.array(labels)[indices_wrong]
+                data_wrong = np.array(data.cpu().numpy())[indices_wrong]
+                cases_wrong.extend([[dates_wrong[i], 
+                                     recs_wrong[i], 
+                                     times_wrong[i], 
+                                     labels_wrong[i], 
+                                     data_wrong[i]] for i in range(len(dates_wrong))])
+    accuracy = correct / total
+    if collect_result:
+        return accuracy, preds, preds_probs, labs, cases_wrong
+    return accuracy
 
-def train(model, criterion, optimizer, train_loader, epoch, alpha, device='cuda'):
+
+def get_loss(model, labels, outputs, alpha=0, loss_type='bce',timewindow = 10, reg_type='none', reduction='mean'):
+    if loss_type == 'hinge':
+        labels[labels == 0] = -1
+        if reduction == 'mean':
+            loss = torch.mean(torch.clamp(1 - labels*outputs, min=0))
+        elif reduction == 'sum':
+            loss = torch.sum(torch.clamp(1 - labels*outputs, min=0))
+    elif loss_type == 'bce':
+        if reduction == 'mean':
+            criterion = nn.BCELoss(reduction='mean')
+        elif reduction == 'sum':
+            criterion = nn.BCELoss(reduction='sum')
+        loss = criterion(torch.sigmoid(outputs), labels)
+    if reg_type != 'none':
+        weights = model.linear.weight.view(-1, 100, timewindow)
+    if reg_type == 'l2':
+        loss += alpha * weights.norm(2)
+    elif reg_type == 'finite_diff':
+        diff_h = (weights[:, :, 1:] - weights[:, :, :-1]).norm(2)
+        diff_v = (weights[:, 1:, :] - weights[:, :-1, :]).norm(2)
+        loss += alpha * (diff_h + diff_v)    
+    return loss
+
+
+def train(model, optimizer, loader, alpha, model_type='LR', loss_type='bce',timewindow = 10, reg_type=None, collect_result=False, device='cuda'):
     model.train()
-    batch_losses = []
+    batch_losses = 0
+    batch_lengths = 0
     
-    preds = []
-    preds_probs = []
-    labs = []
-    
-    correct = 0
-    total = 0
-    
-    for batch_idx, (data, labels, _, _, _) in enumerate(train_loader):
+    for batch_idx, (data, labels, _, _, _) in enumerate(loader):
         data = data.to(device)
         labels = labels.to(device).float()
         
@@ -131,53 +175,30 @@ def train(model, criterion, optimizer, train_loader, epoch, alpha, device='cuda'
             continue
         
         outputs = model(data)
-        loss = criterion(outputs.reshape(outputs.shape[0],-1), labels)
-        try:
-            W = model.linear.weight.view(62, 100, 10)
-        except:
-            W = model.linear.weight.view(1, 100, 10)
-        diff_h = (W[:, :, 1:] - W[:, :, :-1]).norm(2)
-        diff_v = (W[:, 1:, :] - W[:, :-1, :]).norm(2)
-        loss += alpha*(diff_h + diff_v)
-        
+        outputs = outputs.reshape(outputs.shape[0],-1)
+        loss = get_loss(model, labels, outputs, alpha=alpha, loss_type=loss_type, timewindow = timewindow, reg_type=reg_type, reduction='sum')
+        batch_losses += loss
+        batch_lengths += labels.shape[0]
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
         
-        batch_losses.append(loss)
-        
-        predictions = []
-        for o in outputs:
-            if o.item() > .5:
-                predictions.append(1)
-            else:
-                predictions.append(0)
-        predictions = np.array(predictions)
-        total += labels.size(0)
-        correct += (predictions.flatten() == labels.flatten().cpu().numpy()).sum().item()
-        
-        preds.append(predictions.flatten())
-        preds_probs.append(outputs.flatten().cpu().detach().numpy())
-        labs.append(labels.flatten().cpu().numpy())
-        
-    epoch_loss = sum(batch_losses)/len(batch_losses)
-    accuracy = correct / total
-    # acc = get_accuracy(train_loader) 
+    epoch_loss = batch_losses/batch_lengths
     
-    return epoch_loss, accuracy, preds, preds_probs, labs
+    if collect_result:
+        acc, preds, preds_probs, labs, cases_wrong = get_accuracy(model, loader, model_type=model_type, collect_result=True, device=device)
+        return epoch_loss, acc, preds, preds_probs, labs, cases_wrong
+    else:
+        acc = get_accuracy(model, loader, model_type=model_type, collect_result=False, device=device)
+        return epoch_loss, acc
 
-def test(model, criterion, optimizer, val_loader, device='cuda', mode='valid'):
+def evaluate(model, optimizer, loader, alpha, model_type='LR', loss_type='bce',timewindow = 10, reg_type=None, collect_result=False, device='cuda'):
     model.eval()
-    batch_losses = []
-    preds = []
-    preds_probs = []
-    labs = []
-    correct = 0
-    total = 0
-    cases_wrong = []
+    batch_losses = 0
+    batch_lengths = 0
     
     with torch.no_grad():
-        for batch_idx, (data, labels, dates, recs, times) in enumerate(val_loader):
+        for batch_idx, (data, labels, dates, recs, times) in enumerate(loader):
             data = data.to(device)
             labels = labels.to(device).float()
             
@@ -185,44 +206,36 @@ def test(model, criterion, optimizer, val_loader, device='cuda', mode='valid'):
                 continue
             
             outputs = model(data)
-            loss = criterion(outputs.reshape(outputs.shape[0],-1), labels)
-            
-            batch_losses.append(loss)
-            
-            predictions = []
-            for o in outputs:
-                if o.item() > .5:
-                    predictions.append(1)
-                else:
-                    predictions.append(0)
-            predictions = np.array(predictions)
-            total += labels.size(0)
-            correct += (predictions.flatten() == labels.flatten().cpu().numpy()).sum().item()
+            outputs = outputs.reshape(outputs.shape[0],-1)
+            loss = get_loss(model, labels, outputs, alpha=alpha, timewindow = timewindow,loss_type=loss_type, reg_type=reg_type, reduction='sum')
+            batch_losses += loss
+            batch_lengths += labels.shape[0]
         
-            preds.append(predictions.flatten())
-            preds_probs.append(outputs.flatten().cpu().detach().numpy())
-            labs.append(labels.flatten().cpu().numpy())
-            
-            if mode == 'test':
-                indices_wrong = np.argwhere(np.array(predictions.flatten() != labels.flatten().cpu().numpy())).flatten()
-                if len(indices_wrong) == 0:
-                    continue
-                dates_wrong = np.array(dates)[indices_wrong]
-                recs_wrong = np.array(recs)[indices_wrong]
-                times_wrong = np.array(times)[indices_wrong]
-                labels_wrong = np.array(labels.flatten().cpu().numpy())[indices_wrong]
-                data_wrong = np.array(data.cpu().numpy())[indices_wrong]
-                cases_wrong.extend([[dates_wrong[i], 
-                                     recs_wrong[i], 
-                                     times_wrong[i], 
-                                     labels_wrong[i], 
-                                     data_wrong[i]] for i in range(len(dates_wrong))])
-        
-        epoch_loss = sum(batch_losses)/len(batch_losses)
-        
-    accuracy = correct/total
-    # acc = get_accuracy(loader)
+    epoch_loss = batch_losses/batch_lengths 
     
-    if mode == 'test':
-        return epoch_loss, accuracy, preds, preds_probs, labs, cases_wrong
-    return epoch_loss, accuracy, preds, preds_probs, labs
+    if collect_result:
+        acc, preds, preds_probs, labs, cases_wrong = get_accuracy(model, loader, model_type=model_type, collect_result=True, device=device)
+        return epoch_loss, acc, preds, preds_probs, labs, cases_wrong
+    else:
+        acc = get_accuracy(model, loader, model_type=model_type, collect_result=False, device=device)
+        return epoch_loss, acc
+
+
+def plot_loss_acc(training_losses, val_losses, training_acc, validation_acc, model_name):
+    plt.figure(figsize=(12,4))
+    plt.subplot(1,2,1)
+    plt.title(model_name, fontsize = 15)
+    plt.plot(training_losses, linewidth = 1.5, label = 'train')
+    plt.plot(val_losses, linewidth = 1.5, label = 'valid')
+    plt.xlabel("Epoch",fontsize = 15)
+    plt.ylabel("Loss", fontsize = 15)
+    plt.legend()
+    plt.subplot(1,2,2)
+    plt.title(model_name, fontsize = 15)
+    plt.plot(training_acc, linewidth = 1.5, label = 'train')
+    plt.plot(validation_acc, linewidth = 1.5, label = 'valid')
+    plt.xlabel("Epoch",fontsize = 15)
+    plt.ylabel("Accuracy", fontsize = 15)
+    plt.legend()
+    plt.show()
+    
