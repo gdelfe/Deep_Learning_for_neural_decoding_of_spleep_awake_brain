@@ -15,65 +15,70 @@ from scipy.io import loadmat
 import random
 
 
-class SpectrogramDataset(Dataset):
-    def __init__(self, val_dates, test_dates, mode='train', version='_Goose_1st', CH=None, upsample=False):
+class SpectrogramDatasetNew(Dataset):
+    def __init__(self, files, load_path, CH=None):
         self.CH = CH
-        self.version = version
-        self.movement_files = os.listdir('/mnt/pesaranlab/People/Capstone_students/Yue/data/data'+version+'/move/')
-        self.sleeping_files = os.listdir('/mnt/pesaranlab/People/Capstone_students/Yue/data/data'+version+'/sleep/')
-        if upsample:
-            diff = len(self.sleeping_files)-len(self.movement_files)
-            try:
-                d = 0
-                while d < diff:
-                    ind = random.randint(0, len(self.movement_files)-1)
-                    x = self.movement_files[ind]
-                    x_date = x.split('_')[0]
-                    if x_date not in val_dates+test_dates:
-                        self.movement_files.append(x)
-                        d += 1
-            except ValueError:
-                print('Movoment instance more than sleep instances!')
-        all_files = self.sleeping_files + self.movement_files
-        if mode == 'train':
-            self.all_files = [f for f in all_files if f.split('_')[0] not in val_dates+test_dates]
-        elif mode == 'valid':
-            self.all_files = [f for f in all_files if f.split('_')[0] in val_dates]
-        elif mode == 'test':
-            self.all_files = [f for f in all_files if f.split('_')[0] in test_dates]
+        self.files = files
+        self.load_path = load_path
   
     def __len__(self):
-        return len(self.all_files)
+        return len(self.files)
     
     def __getitem__(self, idx):
-        mvmt_type  = self.all_files[idx].split('_')[-1].split('.')[0]
-        date = self.all_files[idx].split('_')[0]
-        rec = self.all_files[idx].split('_')[1].split('_')[0]
-        time = float(self.all_files[idx].split('_')[3][4:])
-        path = '/mnt/pesaranlab/People/Capstone_students/Yue/data/'
-        spec = torch.from_numpy(np.load(path+'data'+self.version+'/'+ mvmt_type +'/' +self.all_files[idx])) 
-        if mvmt_type == 'move':
-            label = torch.Tensor([0])
-        elif mvmt_type == 'sleep':
-            label = torch.Tensor([1])
-        else:
-            label = torch.Tensor([-1])
-            
+        f, label, mvmt_type, date, rec, time = self.files[idx]
+        spec = torch.from_numpy(np.load(self.load_path+mvmt_type+'/'+f))
         if self.CH is not None:
-            return torch.transpose(spec[self.CH,:,:].unsqueeze(0), 2, 1), label, date, rec, time
+            return torch.transpose(spec[self.CH,:,:].unsqueeze(0), 2, 1), torch.Tensor([label]), date, rec, time
         else:
-            return torch.transpose(spec, 2, 1), label, date, rec, time
+            return torch.transpose(spec, 2, 1), torch.Tensor([label]), date, rec, time
 
+        
+def create_files(load_path, val_dates, test_dates):
+    train_files, val_files, test_files = [], [], []
+    sleep_files = os.listdir(load_path+'sleep/')
+    move_files = os.listdir(load_path+'/move/')
+    
+    diff = len(sleep_files)-len(move_files)
+    try:
+        d = 0
+        while d < diff:
+            ind = random.randint(0, len(move_files)-1)
+            x = move_files[ind]
+            x_date = x.split('_')[0]
+            if x_date not in val_dates+test_dates:
+                move_files.append(x)
+                d += 1
+    except ValueError:
+        print('Movoment instance more than sleep instances!')
 
-def create_dataloaders(val_dates, test_dates, version='v5', batch_size=32, CH=None, upsample=False):
+    all_files = sleep_files+move_files
+    for f in all_files:
+        mvmt_type = f.split('_')[-1].split('.')[0]
+        if mvmt_type == 'sleep':
+            label = 1
+        elif mvmt_type == 'move':
+            label = 0
+        date = f.split('_')[0]
+        rec = f.split('_')[1].split('_')[0]
+        time = float(f.split('_')[3][4:])
+        if date not in val_dates+test_dates:
+            train_files.append([f, label, mvmt_type, date, rec, time])
+        elif date in val_dates:
+            val_files.append([f, label, mvmt_type, date, rec, time])
+        elif date in test_dates:
+            test_files.append([f, label, mvmt_type, date, rec, time])
+            
+    return train_files, val_files, test_files
+    
+        
+def create_dataloaders(train_files, val_files, test_files, load_path, batch_size=32, CH=None):
+    train_dataset = SpectrogramDatasetNew(files=train_files, load_path=load_path, CH=CH)
+    valid_dataset = SpectrogramDatasetNew(files=val_files, load_path=load_path, CH=CH)
+    test_dataset = SpectrogramDatasetNew(files=test_files, load_path=load_path, CH=CH)
 
-    train_dataset = SpectrogramDataset(val_dates=val_dates, test_dates=test_dates, mode='train', version=version, CH=CH, upsample=upsample)
-    valid_dataset = SpectrogramDataset(val_dates=val_dates, test_dates=test_dates, mode='valid', version=version, CH=CH, upsample=upsample)
-    test_dataset = SpectrogramDataset(val_dates=val_dates, test_dates=test_dates, mode='test', version=version, CH=CH, upsample=upsample)
-
-    train_loader = DataLoader(dataset = train_dataset, batch_size = batch_size, shuffle = True)
-    val_loader = DataLoader(dataset = valid_dataset, batch_size = batch_size, shuffle = False)
-    test_loader = DataLoader(dataset = test_dataset, batch_size = batch_size, shuffle = False)
+    train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle = True)
+    val_loader = DataLoader(dataset=valid_dataset, batch_size=batch_size, shuffle = False)
+    test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle = False)
 
     return train_loader, val_loader, test_loader
 
