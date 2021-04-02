@@ -15,6 +15,7 @@ from scipy.io import loadmat
 import random
 
 
+<<<<<<< HEAD
 class SpectrogramDataset(Dataset):
     def __init__(self, file_path, val_dates, test_dates, mode='train', version='_Goose_1st', CH=None, upsample=False):
         self.CH = CH
@@ -41,11 +42,19 @@ class SpectrogramDataset(Dataset):
             self.all_files = [f for f in all_files if f.split('_')[0] in val_dates]
         elif mode == 'test':
             self.all_files = [f for f in all_files if f.split('_')[0] in test_dates]
+=======
+class SpectrogramDatasetNew(Dataset):
+    def __init__(self, files, load_path, CH=None):
+        self.CH = CH
+        self.files = files
+        self.load_path = load_path
+>>>>>>> 4109182083890cc0679eb0ffbd3f4d116935200d
   
     def __len__(self):
-        return len(self.all_files)
+        return len(self.files)
     
     def __getitem__(self, idx):
+<<<<<<< HEAD
         mvmt_type  = self.all_files[idx].split('_')[-1].split('.')[0]
         date = self.all_files[idx].split('_')[0]
         rec = self.all_files[idx].split('_')[1].split('_')[0]
@@ -59,21 +68,70 @@ class SpectrogramDataset(Dataset):
         else:
             label = torch.Tensor([-1])
             
+=======
+        f, label, mvmt_type, date, rec, time = self.files[idx]
+        spec = torch.from_numpy(np.load(self.load_path+mvmt_type+'/'+f))
+>>>>>>> 4109182083890cc0679eb0ffbd3f4d116935200d
         if self.CH is not None:
-            return torch.transpose(spec[self.CH,:,:].unsqueeze(0), 2, 1), label, date, rec, time
+            return torch.transpose(spec[self.CH,:,:].unsqueeze(0), 2, 1), torch.Tensor([label]), date, rec, time
         else:
-            return torch.transpose(spec, 2, 1), label, date, rec, time
+            return torch.transpose(spec, 2, 1), torch.Tensor([label]), date, rec, time
 
-
+<<<<<<< HEAD
 def create_dataloaders(val_dates, test_dates, version='v5', batch_size=32, CH=None, upsample=False):
 
     train_dataset = SpectrogramDataset(val_dates=val_dates, test_dates=test_dates, mode='train', version=version, CH=CH, upsample=upsample)
     valid_dataset = SpectrogramDataset(val_dates=val_dates, test_dates=test_dates, mode='valid', version=version, CH=CH, upsample=upsample)
     test_dataset = SpectrogramDataset(val_dates=val_dates, test_dates=test_dates, mode='test', version=version, CH=CH, upsample=upsample)
+=======
+        
+def create_files(load_path, val_dates, test_dates):
+    train_files, val_files, test_files = [], [], []
+    sleep_files = os.listdir(load_path+'sleep/')
+    move_files = os.listdir(load_path+'/move/')
+    
+    diff = len(sleep_files)-len(move_files)
+    try:
+        d = 0
+        while d < diff:
+            ind = random.randint(0, len(move_files)-1)
+            x = move_files[ind]
+            x_date = x.split('_')[0]
+            if x_date not in val_dates+test_dates:
+                move_files.append(x)
+                d += 1
+    except ValueError:
+        print('Movoment instance more than sleep instances!')
 
-    train_loader = DataLoader(dataset = train_dataset, batch_size = batch_size, shuffle = True)
-    val_loader = DataLoader(dataset = valid_dataset, batch_size = batch_size, shuffle = False)
-    test_loader = DataLoader(dataset = test_dataset, batch_size = batch_size, shuffle = False)
+    all_files = sleep_files+move_files
+    for f in all_files:
+        mvmt_type = f.split('_')[-1].split('.')[0]
+        if mvmt_type == 'sleep':
+            label = 1
+        elif mvmt_type == 'move':
+            label = 0
+        date = f.split('_')[0]
+        rec = f.split('_')[1].split('_')[0]
+        time = float(f.split('_')[3][4:])
+        if date not in val_dates+test_dates:
+            train_files.append([f, label, mvmt_type, date, rec, time])
+        elif date in val_dates:
+            val_files.append([f, label, mvmt_type, date, rec, time])
+        elif date in test_dates:
+            test_files.append([f, label, mvmt_type, date, rec, time])
+            
+    return train_files, val_files, test_files
+    
+        
+def create_dataloaders(train_files, val_files, test_files, load_path, batch_size=32, CH=None):
+    train_dataset = SpectrogramDatasetNew(files=train_files, load_path=load_path, CH=CH)
+    valid_dataset = SpectrogramDatasetNew(files=val_files, load_path=load_path, CH=CH)
+    test_dataset = SpectrogramDatasetNew(files=test_files, load_path=load_path, CH=CH)
+>>>>>>> 4109182083890cc0679eb0ffbd3f4d116935200d
+
+    train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle = True)
+    val_loader = DataLoader(dataset=valid_dataset, batch_size=batch_size, shuffle = False)
+    test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle = False)
 
     return train_loader, val_loader, test_loader
 
@@ -137,6 +195,7 @@ def get_accuracy(model, loader, model_type='LR', collect_result=False, device='c
         return accuracy, preds, preds_probs, labs, cases_wrong
     return accuracy
 
+<<<<<<< HEAD
 
 def get_loss(model, labels, outputs, alpha=0, loss_type='bce',timewindow = 10, reg_type='none', reduction='mean'):
     if loss_type == 'hinge':
@@ -163,6 +222,34 @@ def get_loss(model, labels, outputs, alpha=0, loss_type='bce',timewindow = 10, r
 
 
 def train(model, optimizer, loader, alpha, model_type='LR', loss_type='bce',timewindow = 10, reg_type=None, collect_result=False, device='cuda'):
+=======
+
+def get_loss(model, labels, outputs, alpha=0, loss_type='bce', reg_type='none', reduction='mean'):
+    if loss_type == 'hinge':
+        labels[labels == 0] = -1
+        if reduction == 'mean':
+            loss = torch.mean(torch.clamp(1 - labels*outputs, min=0))
+        elif reduction == 'sum':
+            loss = torch.sum(torch.clamp(1 - labels*outputs, min=0))
+    elif loss_type == 'bce':
+        if reduction == 'mean':
+            criterion = nn.BCELoss(reduction='mean')
+        elif reduction == 'sum':
+            criterion = nn.BCELoss(reduction='sum')
+        loss = criterion(torch.sigmoid(outputs), labels)
+    if reg_type != 'none':
+        weights = model.linear.weight.view(-1, 100, 10)
+    if reg_type == 'l2':
+        loss += alpha * weights.norm(2)
+    elif reg_type == 'finite_diff':
+        diff_h = (weights[:, :, 1:] - weights[:, :, :-1]).norm(2)
+        diff_v = (weights[:, 1:, :] - weights[:, :-1, :]).norm(2)
+        loss += alpha * (diff_h + diff_v)    
+    return loss
+
+
+def train(model, optimizer, loader, alpha, model_type='LR', loss_type='bce', reg_type=None, collect_result=False, device='cuda'):
+>>>>>>> 4109182083890cc0679eb0ffbd3f4d116935200d
     model.train()
     batch_losses = 0
     batch_lengths = 0
@@ -176,7 +263,11 @@ def train(model, optimizer, loader, alpha, model_type='LR', loss_type='bce',time
         
         outputs = model(data)
         outputs = outputs.reshape(outputs.shape[0],-1)
+<<<<<<< HEAD
         loss = get_loss(model, labels, outputs, alpha=alpha, loss_type=loss_type, timewindow = timewindow, reg_type=reg_type, reduction='sum')
+=======
+        loss = get_loss(model, labels, outputs, alpha=alpha, loss_type=loss_type, reg_type=reg_type, reduction='sum')
+>>>>>>> 4109182083890cc0679eb0ffbd3f4d116935200d
         batch_losses += loss
         batch_lengths += labels.shape[0]
         optimizer.zero_grad()
@@ -192,7 +283,11 @@ def train(model, optimizer, loader, alpha, model_type='LR', loss_type='bce',time
         acc = get_accuracy(model, loader, model_type=model_type, collect_result=False, device=device)
         return epoch_loss, acc
 
+<<<<<<< HEAD
 def evaluate(model, optimizer, loader, alpha, model_type='LR', loss_type='bce',timewindow = 10, reg_type=None, collect_result=False, device='cuda'):
+=======
+def evaluate(model, optimizer, loader, alpha, model_type='LR', loss_type='bce', reg_type=None, collect_result=False, device='cuda'):
+>>>>>>> 4109182083890cc0679eb0ffbd3f4d116935200d
     model.eval()
     batch_losses = 0
     batch_lengths = 0
@@ -207,7 +302,11 @@ def evaluate(model, optimizer, loader, alpha, model_type='LR', loss_type='bce',t
             
             outputs = model(data)
             outputs = outputs.reshape(outputs.shape[0],-1)
+<<<<<<< HEAD
             loss = get_loss(model, labels, outputs, alpha=alpha, timewindow = timewindow,loss_type=loss_type, reg_type=reg_type, reduction='sum')
+=======
+            loss = get_loss(model, labels, outputs, alpha=alpha, loss_type=loss_type, reg_type=reg_type, reduction='sum')
+>>>>>>> 4109182083890cc0679eb0ffbd3f4d116935200d
             batch_losses += loss
             batch_lengths += labels.shape[0]
         
