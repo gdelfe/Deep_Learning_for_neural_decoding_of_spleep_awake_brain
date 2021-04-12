@@ -13,6 +13,7 @@ from skimage import io
 from PIL import Image
 from scipy.io import loadmat
 import random
+import pdb
 
 
 class SpectrogramDataset(Dataset):
@@ -138,15 +139,21 @@ def get_accuracy(model, loader, model_type='LR', collect_result=False, device='c
     return accuracy
 
 
-def get_loss(model, labels, outputs, alpha=0, loss_type='bce', reg_type='none'):
+def get_loss(model, labels, outputs, alpha=0, loss_type='bce', reg_type='none', reduction='mean'):
     if loss_type == 'hinge':
         labels[labels == 0] = -1
-        loss = torch.mean(torch.clamp(1 - labels*outputs, min=0))
+        if reduction == 'mean':
+            loss = torch.mean(torch.clamp(1 - labels*outputs, min=0))
+        elif reduction == 'sum':
+            loss = torch.sum(torch.clamp(1 - labels*outputs, min=0))
     elif loss_type == 'bce':
-        criterion = nn.BCELoss()
+        if reduction == 'mean':
+            criterion = nn.BCELoss(reduction='mean')
+        elif reduction == 'sum':
+            criterion = nn.BCELoss(reduction='sum')
         loss = criterion(torch.sigmoid(outputs), labels)
     if reg_type != 'none':
-        weights = model.linear.weight.view(data.shape[1], 100, 10)
+        weights = model.linear.weight.view(-1, 100, 10)
     if reg_type == 'l2':
         loss += alpha * weights.norm(2)
     elif reg_type == 'finite_diff':
@@ -158,7 +165,8 @@ def get_loss(model, labels, outputs, alpha=0, loss_type='bce', reg_type='none'):
 
 def train(model, optimizer, loader, alpha, model_type='LR', loss_type='bce', reg_type=None, collect_result=False, device='cuda'):
     model.train()
-    batch_losses = []
+    batch_losses = 0
+    batch_lengths = 0
     
     for batch_idx, (data, labels, _, _, _) in enumerate(loader):
         data = data.to(device)
@@ -168,14 +176,15 @@ def train(model, optimizer, loader, alpha, model_type='LR', loss_type='bce', reg
             continue
         
         outputs = model(data)
-        loss = get_loss(model, labels, outputs.reshape(outputs.shape[0],-1), alpha=alpha, loss_type=loss_type, reg_type=reg_type)
-        predictions = get_pred(outputs, model_type=model_type)
-        batch_losses.append(loss)
+        outputs = outputs.reshape(outputs.shape[0],-1)
+        loss = get_loss(model, labels, outputs, alpha=alpha, loss_type=loss_type, reg_type=reg_type, reduction='sum')
+        batch_losses += loss
+        batch_lengths += labels.shape[0]
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
         
-    epoch_loss = sum(batch_losses)/len(batch_losses)
+    epoch_loss = batch_losses/batch_lengths
     
     if collect_result:
         acc, preds, preds_probs, labs, cases_wrong = get_accuracy(model, loader, model_type=model_type, collect_result=True, device=device)
@@ -186,7 +195,8 @@ def train(model, optimizer, loader, alpha, model_type='LR', loss_type='bce', reg
 
 def evaluate(model, optimizer, loader, alpha, model_type='LR', loss_type='bce', reg_type=None, collect_result=False, device='cuda'):
     model.eval()
-    batch_losses = []
+    batch_losses = 0
+    batch_lengths = 0
     
     with torch.no_grad():
         for batch_idx, (data, labels, dates, recs, times) in enumerate(loader):
@@ -197,11 +207,12 @@ def evaluate(model, optimizer, loader, alpha, model_type='LR', loss_type='bce', 
                 continue
             
             outputs = model(data)
-            loss = get_loss(model, labels, outputs.reshape(outputs.shape[0],-1), alpha=alpha, loss_type=loss_type, reg_type=reg_type)
-            predictions = get_pred(outputs, model_type=model_type)
-            batch_losses.append(loss)
+            outputs = outputs.reshape(outputs.shape[0],-1)
+            loss = get_loss(model, labels, outputs, alpha=alpha, loss_type=loss_type, reg_type=reg_type, reduction='sum')
+            batch_losses += loss
+            batch_lengths += labels.shape[0]
         
-    epoch_loss = sum(batch_losses)/len(batch_losses)    
+    epoch_loss = batch_losses/batch_lengths 
     
     if collect_result:
         acc, preds, preds_probs, labs, cases_wrong = get_accuracy(model, loader, model_type=model_type, collect_result=True, device=device)
