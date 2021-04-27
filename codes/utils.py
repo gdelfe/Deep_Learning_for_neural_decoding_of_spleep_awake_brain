@@ -13,10 +13,7 @@ from skimage import io
 from PIL import Image
 from scipy.io import loadmat
 import random
-<<<<<<< HEAD
-=======
 import pdb
->>>>>>> 83a4272d8f309363567ac8c032171b9a1114f398
 from sklearn.metrics import confusion_matrix
 import seaborn as sn
 
@@ -319,10 +316,7 @@ def tuning(train_loader, val_loader, model, optimizer, device, num_epochs, alpha
             print('Train loss for epoch {}: {}'.format(epoch, train_loss))
             print('Val loss for epoch {}: {}'.format(epoch, val_loss))
     plot_loss_acc(training_losses, val_losses, training_acc, validation_acc, model_type)
-<<<<<<< HEAD
     plot_weight_glm(device, path, model_type, CH, loss_type, reg_type, alpha, best_epoch)  
     return best_epoch, min(val_losses)
-=======
     plot_weight_glm(device, path, model_type, CH, loss_type, reg_type, alpha, best_epoch)
->>>>>>> 83a4272d8f309363567ac8c032171b9a1114f398
     
