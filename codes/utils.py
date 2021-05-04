@@ -13,7 +13,6 @@ from skimage import io
 from PIL import Image
 from scipy.io import loadmat
 import random
-import pdb
 from sklearn.metrics import confusion_matrix
 import seaborn as sn
 
@@ -35,23 +34,10 @@ class SpectrogramDatasetNew(Dataset):
         else:
             return torch.transpose(spec, 2, 1), torch.Tensor([label]), date, rec, time
         
-def create_files(load_path, val_dates, test_dates):
+def create_files(load_path, val_dates, test_dates, bad_dates):
     train_files, val_files, test_files = [], [], []
     sleep_files = os.listdir(load_path+'sleep/')
     move_files = os.listdir(load_path+'/move/')
-    
-    diff = len(sleep_files)-len(move_files)
-    try:
-        d = 0
-        while d < diff:
-            ind = random.randint(0, len(move_files)-1)
-            x = move_files[ind]
-            x_date = x.split('_')[0]
-            if x_date not in val_dates+test_dates:
-                move_files.append(x)
-                d += 1
-    except ValueError:
-        print('Movoment instance more than sleep instances!')
 
     all_files = sleep_files+move_files
     for f in all_files:
@@ -63,12 +49,26 @@ def create_files(load_path, val_dates, test_dates):
         date = f.split('_')[0]
         rec = f.split('_')[1].split('_')[0]
         time = float(f.split('_')[3][4:])
-        if date not in val_dates+test_dates:
+        if date not in val_dates+test_dates+bad_dates:
             train_files.append([f, label, mvmt_type, date, rec, time])
         elif date in val_dates:
             val_files.append([f, label, mvmt_type, date, rec, time])
         elif date in test_dates:
             test_files.append([f, label, mvmt_type, date, rec, time])
+            
+    train_sleep = [i for i in train_files if i[1] == 1]
+    train_move = [i for i in train_files if i[1] == 0]
+    diff = len(train_sleep)-len(train_move)
+    try:
+        d = 0
+        while d < diff:
+            ind = random.randint(0, len(train_move)-1)
+            x = train_move[ind]
+            train_move.append(x)
+            d += 1
+    except ValueError:
+        print('Movoment instance more than sleep instances!')
+    train_files = train_sleep+train_move
             
     return train_files, val_files, test_files
     
@@ -83,6 +83,23 @@ def create_dataloaders(train_files, val_files, test_files, load_path, batch_size
     test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle = False)
 
     return train_loader, val_loader, test_loader
+
+def test_imbalance(load_path, val_dates, test_dates, bad_dates, test_train=False):
+    train_files, val_files, test_files = create_files(load_path, val_dates, test_dates, bad_dates)
+    train_loader, val_loader, test_loader = create_dataloaders(train_files, val_files, test_files, load_path, batch_size=256)
+    val_labels, test_labels = [], []
+    for _, labels, _, _, _ in val_loader:
+        val_labels.extend(list(labels.flatten().numpy()))
+    for _, labels, _, _, _ in test_loader:
+        test_labels.extend(list(labels.flatten().numpy()))
+    print('val dates: {}, test dates: {}'.format(val_dates, test_dates))
+    print('val instances: {}, val imbalance: {}'.format(len(val_labels), np.mean(val_labels)))
+    print('test instances: {}, test imbalance: {}'.format(len(test_labels), np.mean(test_labels)))
+    if test_train:
+        train_labels = []
+        for _, labels, _, _, _ in train_loader:
+            train_labels.extend(list(labels.flatten().numpy()))
+        print('train instances: {}, train imbalance: {}'.format(len(train_labels), np.mean(train_labels)))
 
 
 class GLM(nn.Module):
@@ -107,7 +124,7 @@ def get_pred(outputs, model_type='LR'):
 def get_accuracy(model, loader, model_type='LR', collect_result=False, device='cuda'):
     correct = 0
     total = 0
-    preds, preds_probs, labs, cases_wrong = [], [], [], []
+    preds, preds_probs, labs, dates_all, recs_all, times_all, cases_wrong = [], [], [], [], [], [], []
     with torch.no_grad():
         for data, labels, dates, recs, times in loader:
             data = data.to(device)
@@ -126,6 +143,9 @@ def get_accuracy(model, loader, model_type='LR', collect_result=False, device='c
                 preds.append(predictions)
                 preds_probs.append(outputs)
                 labs.append(labels)
+                dates_all.append(dates)
+                recs_all.append(recs)
+                times_all.append(times)
                 
                 indices_wrong = np.argwhere(np.array(predictions != labels)).flatten()
                 if len(indices_wrong) == 0:
@@ -142,7 +162,7 @@ def get_accuracy(model, loader, model_type='LR', collect_result=False, device='c
                                      data_wrong[i]] for i in range(len(dates_wrong))])
     accuracy = correct / total
     if collect_result:
-        return accuracy, preds, preds_probs, labs, cases_wrong
+        return accuracy, preds, preds_probs, labs, dates_all, recs_all, times_all, cases_wrong
     return accuracy
 
 
@@ -223,8 +243,8 @@ def evaluate(model, optimizer, loader, alpha, timewindow=10, model_type='LR', lo
     epoch_loss = batch_losses/batch_lengths 
     
     if collect_result:
-        acc, preds, preds_probs, labs, cases_wrong = get_accuracy(model, loader, model_type=model_type, collect_result=True, device=device)
-        return epoch_loss, acc, preds, preds_probs, labs, cases_wrong
+        acc, preds, preds_probs, labs, dates_all, recs_all, times_all, cases_wrong = get_accuracy(model, loader, model_type=model_type, collect_result=True, device=device)
+        return epoch_loss, acc, preds, preds_probs, labs, dates_all, recs_all, times_all, cases_wrong
     else:
         acc = get_accuracy(model, loader, model_type=model_type, collect_result=False, device=device)
         return epoch_loss, acc
@@ -295,6 +315,29 @@ def plot_confusion(test_preds, test_labels):
     plt.xlabel('Predicted Label')
     plt.ylabel('True Label')
     plt.show()
+    
+def plot_pred_vs_true(preds, labels, dates, recs, times, date_1='180329', rec_list=['001', '002', '003', '004', '005', '006', '007', '008', '009']):
+    pred, label, date, rec, time = [], [], [], [], []
+    for i in range(len(preds)):
+        pred.extend(list(preds[i]))
+        label.extend(list(labels[i]))
+        date.extend(list(dates[i]))
+        rec.extend(list(recs[i]))
+        time.extend(list(times[i].numpy()))
+    
+    dic = {'pred': pred, 'label': label, 'date': date, 'rec': rec, 'time': time}
+    df = pd.DataFrame(dic)
+    
+    for rec in rec_list:
+        df_rec = df[(df.date == date_1) & (df.rec == rec)].sort_values(by='time')
+        if not df_rec.empty:
+            plt.figure(figsize=(20,6))
+            plt.plot(df_rec.time, df_rec.pred, 'o', label='pred')
+            plt.plot(df_rec.time, df_rec.label, '+', label='true')
+            plt.legend()
+            plt.xlabel('time',fontsize=15)
+            plt.title('wake/sleep classification for date {} and rec {}'.format(date_1, rec), fontsize=15)
+            plt.show()
         
         
 def tuning(train_loader, val_loader, model, optimizer, device, num_epochs, alpha, model_type, loss_type, reg_type, CH, path, timewindow=10, verbose=False):
@@ -315,8 +358,12 @@ def tuning(train_loader, val_loader, model, optimizer, device, num_epochs, alpha
         elif verbose:
             print('Train loss for epoch {}: {}'.format(epoch, train_loss))
             print('Val loss for epoch {}: {}'.format(epoch, val_loss))
+        
+        # so we could calculate the confusion matrix for train data when its loss reaches around minimum
+        if epoch == num_epochs-1:
+            torch.save(model.state_dict(), '{}/{}_CH{}_LOSS{}_REG{}{}_EPOCH{}_REDUCEsum.pt'.format(path, model_type, CH, loss_type, reg_type, alpha, epoch))
+            
     plot_loss_acc(training_losses, val_losses, training_acc, validation_acc, model_type)
     plot_weight_glm(device, path, model_type, CH, loss_type, reg_type, alpha, best_epoch)  
     return best_epoch, min(val_losses)
-    plot_weight_glm(device, path, model_type, CH, loss_type, reg_type, alpha, best_epoch)
     
