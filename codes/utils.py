@@ -127,9 +127,8 @@ def get_accuracy(model, loader, model_type='LR', collect_result=False, device='c
     preds, preds_probs, labs, dates_all, recs_all, times_all, cases_wrong = [], [], [], [], [], [], []
     with torch.no_grad():
         for data, labels, dates, recs, times in loader:
-            data = data.to(device)
-            # labels = labels.to(device).float()
-            labels = labels.to(device)
+            data = data.to(device).float()
+            labels = labels.to(device).float()
             outputs = model(data)
             predictions = get_pred(outputs, model_type=model_type)
             outputs = outputs.flatten().detach().cpu().numpy()
@@ -196,11 +195,8 @@ def train(model, optimizer, loader, alpha, timewindow=10, model_type='LR', loss_
     batch_lengths = 0
     
     for batch_idx, (data, labels, _, _, _) in enumerate(loader):
-        data = data.to(device)
+        data = data.to(device).float()
         labels = labels.to(device).float()
-        
-        if (torch.isinf(data).any()) or (torch.isnan(data).any()):
-            continue
         
         outputs = model(data)
         outputs = outputs.reshape(outputs.shape[0],-1)
@@ -228,12 +224,9 @@ def evaluate(model, optimizer, loader, alpha, timewindow=10, model_type='LR', lo
     
     with torch.no_grad():
         for batch_idx, (data, labels, dates, recs, times) in enumerate(loader):
-            data = data.to(device)
+            data = data.to(device).float()
             labels = labels.to(device).float()
-            
-            if (torch.isinf(data).any()) or (torch.isnan(data).any()):
-                continue
-            
+
             outputs = model(data)
             outputs = outputs.reshape(outputs.shape[0],-1)
             loss = get_loss(model, labels, outputs, alpha=alpha, timewindow=timewindow, loss_type=loss_type, reg_type=reg_type, reduction='sum')
@@ -271,8 +264,8 @@ def plot_loss_acc(training_losses, val_losses, training_acc, validation_acc, mod
 
 def plot_weight_glm(device, path, model_type, CH, loss_type, reg_type, alpha, best_epoch, timewindow=10):
     if CH == 'all':
-        model = GLM().to(device)
-        model.load_state_dict(torch.load('{}/{}_CH{}_LOSS{}_REG{}{}_EPOCH{}_REDUCEsum.pt'.format(path, model_type, CH, loss_type, reg_type, alpha, best_epoch)))
+        model = GLM(input_dim=100*timewindow*62).to(device)
+        model.load_state_dict(torch.load('{}/{}_CH{}_LOSS{}_REG{}{}_TW{}_EPOCH{}.pt'.format(path, model_type, CH, loss_type, reg_type, alpha, timewindow,best_epoch)))
         weights = model.linear.weight.view(62, 100, timewindow)
         plt.figure(figsize=(15,8))
         for i in range(62):
@@ -288,7 +281,7 @@ def plot_weight_glm(device, path, model_type, CH, loss_type, reg_type, alpha, be
         plt.show()
     else:
         model = GLM(input_dim=100*timewindow).to(device)
-        model.load_state_dict(torch.load('{}/{}_CH{}_LOSS{}_REG{}{}_EPOCH{}_REDUCEsum.pt'.format(path, model_type, CH, loss_type, reg_type, alpha, best_epoch)))
+        model.load_state_dict(torch.load('{}/{}_CH{}_LOSS{}_REG{}{}_TW{}_EPOCH{}.pt'.format(path, model_type, CH, loss_type, reg_type, alpha, timewindow, best_epoch)))
         weights = model.linear.weight.view(100, timewindow)
         weights_sub = weights.detach().cpu()
         plt.yticks(ticks=[0, 20, 40, 60, 80, 99], labels=[round(np.logspace(0, 2.45, 100)[i]) for i in [0, 20, 40, 60, 80, 99]])
@@ -354,16 +347,15 @@ def tuning(train_loader, val_loader, model, optimizer, device, num_epochs, alpha
             print(epoch)
             print('Train loss for epoch {}: {}'.format(epoch, train_loss))
             print('Val loss for epoch {}: {}'.format(epoch, val_loss))
-            torch.save(model.state_dict(), '{}/{}_CH{}_LOSS{}_REG{}{}_EPOCH{}_REDUCEsum.pt'.format(path, model_type, CH, loss_type, reg_type, alpha, epoch))
+            torch.save(model.state_dict(), '{}/{}_CH{}_LOSS{}_REG{}{}_TW{}_EPOCH{}.pt'.format(path, model_type, CH, loss_type, reg_type, alpha, timewindow, epoch))
         elif verbose:
             print('Train loss for epoch {}: {}'.format(epoch, train_loss))
             print('Val loss for epoch {}: {}'.format(epoch, val_loss))
         
         # so we could calculate the confusion matrix for train data when its loss reaches around minimum
         if epoch == num_epochs-1:
-            torch.save(model.state_dict(), '{}/{}_CH{}_LOSS{}_REG{}{}_EPOCH{}_REDUCEsum.pt'.format(path, model_type, CH, loss_type, reg_type, alpha, epoch))
+            torch.save(model.state_dict(), '{}/{}_CH{}_LOSS{}_REG{}{}_TW{}_EPOCH{}.pt'.format(path, model_type, CH, loss_type, reg_type, alpha, timewindow, epoch))
             
-    plot_loss_acc(training_losses, val_losses, training_acc, validation_acc, model_type)
-    plot_weight_glm(device, path, model_type, CH, loss_type, reg_type, alpha, best_epoch)  
+    plot_loss_acc(training_losses, val_losses, training_acc, validation_acc, model_type)  
     return best_epoch, min(val_losses)
     
