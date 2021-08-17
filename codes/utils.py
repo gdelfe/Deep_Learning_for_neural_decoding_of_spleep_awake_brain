@@ -200,7 +200,7 @@ def train(model, optimizer, loader, alpha, timewindow=10, model_type='LR', loss_
         
         outputs = model(data)
         outputs = outputs.reshape(outputs.shape[0],-1)
-        loss = get_loss(model, labels, outputs, alpha=alpha, timewindow=timewindow, loss_type=loss_type, reg_type=reg_type, reduction='sum')
+        loss = get_loss(model, labels, outputs, alpha=alpha, timewindow=timewindow, loss_type=loss_type, reg_type=reg_type,reduction='sum')
         batch_losses += loss
         batch_lengths += labels.shape[0]
         loss /= labels.shape[0]
