@@ -15,7 +15,7 @@ from scipy.io import loadmat
 import random
 from sklearn.metrics import confusion_matrix
 import seaborn as sn
-import operator
+import pdb
 
 
 class SpectrogramDatasetNew(Dataset):
@@ -23,7 +23,6 @@ class SpectrogramDatasetNew(Dataset):
         self.CH = CH
         self.files = files
         self.load_path = load_path
-  
     def __len__(self):
         return len(self.files)
     
@@ -38,7 +37,7 @@ class SpectrogramDatasetNew(Dataset):
 def create_files(load_path, val_dates, test_dates, bad_dates):
     train_files, val_files, test_files = [], [], []
     sleep_files = os.listdir(load_path+'sleep/')
-    move_files = os.listdir(load_path+'move/')
+    move_files = os.listdir(load_path+'/move/')
 
     all_files = sleep_files+move_files
     for f in all_files:
@@ -55,27 +54,24 @@ def create_files(load_path, val_dates, test_dates, bad_dates):
         elif date in val_dates:
             val_files.append([f, label, mvmt_type, date, rec, time])
         elif date in test_dates:
-            test_files.append([f, label, mvmt_type, date, rec, time])         
+            test_files.append([f, label, mvmt_type, date, rec, time])
             
     train_sleep = [i for i in train_files if i[1] == 1]
     train_move = [i for i in train_files if i[1] == 0]
-    diff = abs(len(train_sleep)-len(train_move))
-    train_new = []
-    d = 0
-    while d < diff:
-        if len(train_sleep) > len(train_move):
+    diff = len(train_sleep)-len(train_move)
+    try:
+        d = 0
+        while d < diff:
             ind = random.randint(0, len(train_move)-1)
             x = train_move[ind]
+            train_move.append(x)
             d += 1
-        else:
-            ind = random.randint(0, len(train_sleep)-1)
-            x = train_sleep[ind]
-            d += 1
-        train_new.append(x)   
-    train_files = train_sleep+train_move+train_new
+    except ValueError:
+        print('Movoment instance more than sleep instances!')
+    train_files = train_sleep+train_move
             
     return train_files, val_files, test_files
-
+    
         
 def create_dataloaders(train_files, val_files, test_files, load_path, batch_size=32, CH=None):
     train_dataset = SpectrogramDatasetNew(files=train_files, load_path=load_path, CH=CH)
@@ -109,6 +105,17 @@ def test_imbalance(load_path, val_dates, test_dates, bad_dates, test_train=False
 class GLM(nn.Module):
     def __init__(self, input_dim=100*10*62, output_dim=1):
         super(GLM, self).__init__()
+        self.linear = torch.nn.Linear(input_dim, output_dim) # by default, add an intercept
+
+    def forward(self, x):
+        x = x.reshape([x.shape[0], 1, -1]).float()
+        outputs = self.linear(x)
+        return outputs
+
+
+class GLM_1CH(nn.Module):
+    def __init__(self, input_dim=100*10, output_dim=1):
+        super(GLM_1CH, self).__init__()
         self.linear = torch.nn.Linear(input_dim, output_dim) # by default, add an intercept
 
     def forward(self, x):
@@ -204,7 +211,7 @@ def train(model, optimizer, loader, alpha, timewindow=10, model_type='LR', loss_
         
         outputs = model(data)
         outputs = outputs.reshape(outputs.shape[0],-1)
-        loss = get_loss(model, labels, outputs, alpha=alpha, timewindow=timewindow, loss_type=loss_type, reg_type=reg_type, reduction='sum')
+        loss = get_loss(model, labels, outputs, alpha=alpha, timewindow=timewindow, loss_type=loss_type, reg_type=reg_type,reduction='sum')
         batch_losses += loss
         batch_lengths += labels.shape[0]
         loss /= labels.shape[0]
@@ -303,12 +310,12 @@ def plot_confusion(test_preds, test_labels):
     plt.figure(figsize=(15, 5))
     plt.subplot(1,2,1)
     sn.heatmap(cm_test, annot = True,  fmt = 'd', cmap='Blues')
-    plt.title('Confusion Matrix')
+    plt.title('Test Confusion Matrix')
     plt.xlabel('Predicted Label')
     plt.ylabel('True Label')
     plt.subplot(1,2,2)
     sn.heatmap(cm_test_percent, annot = True, cmap='Blues')
-    plt.title('Confusion Matrix (Rate)')
+    plt.title('Test Confusion Matrix (Rate)')
     plt.xlabel('Predicted Label')
     plt.ylabel('True Label')
     plt.show()
@@ -337,7 +344,7 @@ def plot_pred_vs_true(preds, labels, dates, recs, times, date_1='180329', rec_li
             plt.show()
         
         
-def tuning(train_loader, val_loader, model, optimizer, device, num_epochs, alpha, model_type, loss_type, reg_type, CH, path, timewindow=10, verbose=False):
+def tuning(train_loader, val_loader, model, optimizer, device, num_epochs, alpha, model_type, loss_type, reg_type, CH, series, path, timewindow=10, verbose=False):
     training_losses, training_acc, val_losses, validation_acc = [], [], [], []
     for epoch in range(num_epochs):
         train_loss, train_acc = train(model, optimizer, train_loader, alpha=alpha, timewindow=timewindow, model_type=model_type, loss_type=loss_type, reg_type=reg_type, collect_result=False, device=device)
@@ -363,3 +370,28 @@ def tuning(train_loader, val_loader, model, optimizer, device, num_epochs, alpha
     plot_loss_acc(training_losses, val_losses, training_acc, validation_acc, model_type)  
     return best_epoch, min(val_losses)
     
+def tuning2(train_loader, val_loader, model, optimizer, device, num_epochs, alpha, model_type, loss_type, reg_type, CH, series, path, timewindow=10, verbose=False):
+    training_losses, training_acc, val_losses, validation_acc = [], [], [], []
+    for epoch in range(num_epochs):
+        train_loss, train_acc = train(model, optimizer, train_loader, alpha=alpha, timewindow=timewindow, model_type=model_type, loss_type=loss_type, reg_type=reg_type, collect_result=False, device=device)
+        val_loss, val_acc = evaluate(model, optimizer, val_loader, alpha=alpha, timewindow=timewindow, model_type=model_type, loss_type=loss_type, reg_type=reg_type, collect_result=False, device=device)
+        training_losses.append(train_loss)
+        training_acc.append(train_acc)
+        val_losses.append(val_loss)
+        validation_acc.append(val_acc)
+        if val_loss <= min(val_losses):
+            best_epoch = epoch
+            print(epoch)
+            print('Train loss for epoch {}: {}'.format(epoch, train_loss))
+            print('Val loss for epoch {}: {}'.format(epoch, val_loss))
+            torch.save(model.state_dict(), '{}/{}_CH{}_LOSS{}_REG{}{}_TW{}_EPOCH{}_SERIES{}.pt'.format(path, model_type, CH, loss_type, reg_type, alpha, timewindow, epoch,series))
+        elif verbose:
+            print('Train loss for epoch {}: {}'.format(epoch, train_loss))
+            print('Val loss for epoch {}: {}'.format(epoch, val_loss))
+        
+        # so we could calculate the confusion matrix for train data when its loss reaches around minimum
+        if epoch == num_epochs-1:
+            torch.save(model.state_dict(), '{}/{}_CH{}_LOSS{}_REG{}{}_TW{}_EPOCH{}_SERIES{}.pt'.format(path, model_type, CH, loss_type, reg_type, alpha, timewindow, epoch, series))
+            
+    plot_loss_acc(training_losses, val_losses, training_acc, validation_acc, model_type)  
+    return best_epoch, min(val_losses)
