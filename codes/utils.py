@@ -17,12 +17,12 @@ from sklearn.metrics import confusion_matrix
 import seaborn as sn
 import pdb
 
+
 class SpectrogramDatasetNew(Dataset):
     def __init__(self, files, load_path, CH=None):
         self.CH = CH
         self.files = files
         self.load_path = load_path
-  
     def __len__(self):
         return len(self.files)
     
@@ -105,6 +105,17 @@ def test_imbalance(load_path, val_dates, test_dates, bad_dates, test_train=False
 class GLM(nn.Module):
     def __init__(self, input_dim=100*10*62, output_dim=1):
         super(GLM, self).__init__()
+        self.linear = torch.nn.Linear(input_dim, output_dim) # by default, add an intercept
+
+    def forward(self, x):
+        x = x.reshape([x.shape[0], 1, -1]).float()
+        outputs = self.linear(x)
+        return outputs
+
+
+class GLM_1CH(nn.Module):
+    def __init__(self, input_dim=100*10, output_dim=1):
+        super(GLM_1CH, self).__init__()
         self.linear = torch.nn.Linear(input_dim, output_dim) # by default, add an intercept
 
     def forward(self, x):
@@ -333,7 +344,7 @@ def plot_pred_vs_true(preds, labels, dates, recs, times, date_1='180329', rec_li
             plt.show()
         
         
-def tuning(train_loader, val_loader, model, optimizer, device, num_epochs, alpha, model_type, loss_type, reg_type, CH, path, timewindow=10, verbose=False):
+def tuning(train_loader, val_loader, model, optimizer, device, num_epochs, alpha, model_type, loss_type, reg_type, CH, series, path, timewindow=10, verbose=False):
     training_losses, training_acc, val_losses, validation_acc = [], [], [], []
     for epoch in range(num_epochs):
         train_loss, train_acc = train(model, optimizer, train_loader, alpha=alpha, timewindow=timewindow, model_type=model_type, loss_type=loss_type, reg_type=reg_type, collect_result=False, device=device)
@@ -359,3 +370,28 @@ def tuning(train_loader, val_loader, model, optimizer, device, num_epochs, alpha
     plot_loss_acc(training_losses, val_losses, training_acc, validation_acc, model_type)  
     return best_epoch, min(val_losses)
     
+def tuning2(train_loader, val_loader, model, optimizer, device, num_epochs, alpha, model_type, loss_type, reg_type, CH, series, path, timewindow=10, verbose=False):
+    training_losses, training_acc, val_losses, validation_acc = [], [], [], []
+    for epoch in range(num_epochs):
+        train_loss, train_acc = train(model, optimizer, train_loader, alpha=alpha, timewindow=timewindow, model_type=model_type, loss_type=loss_type, reg_type=reg_type, collect_result=False, device=device)
+        val_loss, val_acc = evaluate(model, optimizer, val_loader, alpha=alpha, timewindow=timewindow, model_type=model_type, loss_type=loss_type, reg_type=reg_type, collect_result=False, device=device)
+        training_losses.append(train_loss)
+        training_acc.append(train_acc)
+        val_losses.append(val_loss)
+        validation_acc.append(val_acc)
+        if val_loss <= min(val_losses):
+            best_epoch = epoch
+            print(epoch)
+            print('Train loss for epoch {}: {}'.format(epoch, train_loss))
+            print('Val loss for epoch {}: {}'.format(epoch, val_loss))
+            torch.save(model.state_dict(), '{}/{}_CH{}_LOSS{}_REG{}{}_TW{}_EPOCH{}_SERIES{}.pt'.format(path, model_type, CH, loss_type, reg_type, alpha, timewindow, epoch,series))
+        elif verbose:
+            print('Train loss for epoch {}: {}'.format(epoch, train_loss))
+            print('Val loss for epoch {}: {}'.format(epoch, val_loss))
+        
+        # so we could calculate the confusion matrix for train data when its loss reaches around minimum
+        if epoch == num_epochs-1:
+            torch.save(model.state_dict(), '{}/{}_CH{}_LOSS{}_REG{}{}_TW{}_EPOCH{}_SERIES{}.pt'.format(path, model_type, CH, loss_type, reg_type, alpha, timewindow, epoch, series))
+            
+    plot_loss_acc(training_losses, val_losses, training_acc, validation_acc, model_type)  
+    return best_epoch, min(val_losses)
