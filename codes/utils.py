@@ -248,7 +248,7 @@ def evaluate(model, optimizer, loader, alpha, timewindow=10, model_type='LR', lo
 
 
 def plot_loss_acc(training_losses, val_losses, training_acc, validation_acc, model_name):
-    plt.figure(figsize=(12,4))
+    fig = plt.figure(figsize=(12,4))
     plt.subplot(1,2,1)
     plt.title(model_name, fontsize = 15)
     plt.plot(training_losses, linewidth = 1.5, label = 'train')
@@ -264,6 +264,7 @@ def plot_loss_acc(training_losses, val_losses, training_acc, validation_acc, mod
     plt.ylabel("Accuracy", fontsize = 15)
     plt.legend()
     plt.show()
+    return fig
     
 
 def plot_weight_glm(device, path, model_type, CH, loss_type, reg_type, alpha, best_epoch, timewindow=10):
@@ -300,7 +301,7 @@ def plot_confusion(test_preds, test_labels):
 
     cm_test = confusion_matrix(labels_test, predictions_test)
     cm_test_percent = (cm_test.T/cm_test.astype(np.float).sum(axis=1)).T
-    plt.figure(figsize=(15, 5))
+    fig = plt.figure(figsize=(15, 5))
     plt.subplot(1,2,1)
     sn.heatmap(cm_test, annot = True,  fmt = 'd', cmap='Blues')
     plt.title('Confusion Matrix')
@@ -312,6 +313,8 @@ def plot_confusion(test_preds, test_labels):
     plt.xlabel('Predicted Label')
     plt.ylabel('True Label')
     plt.show()
+    
+    return fig
     
 def plot_pred_vs_true(preds, labels, dates, recs, times, date_1='180329', rec_list=['001', '002', '003', '004', '005', '006', '007', '008', '009']):
     pred, label, date, rec, time = [], [], [], [], []
