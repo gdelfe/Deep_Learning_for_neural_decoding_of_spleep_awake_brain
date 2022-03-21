@@ -22,7 +22,7 @@ Different Artificial Neural Network models are used to test the performance of e
 5. Convolutional Recurrent Neural Networks (CRNN)
 6. Convolutional networks with self-attention mechanisms (e.g. Transformers) (CNN+Attention)
 
-**TRAIN/VALIDATION/TEST**
+**TRAIN/VALIDATION/TEST** <br>
 The models are trained on a set of recordings referred to specific days, and then validated and tested on recordings of other days. To be more specific, the test set goes from day 1-6, the validation set goes from day 7-8, and the test set from day 9-10. In this way testing represents 60% of the data, validation 20% and test 20% of the data respectively. Data for the training, validation, and test are taken in this way in order to have non-overlapping recordings, i.e. we want to prevent that recordings from the same day belong to both the training and validation (test) data set. In this way, the training of the ANN results more complex and harder but we do not introduce any bias. 
 
 We test three different scenario:
