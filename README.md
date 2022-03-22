@@ -38,7 +38,7 @@ For these reasons, it would be easier to pick the recordings for the train/val/t
  Train set is taken from 7 consecutive days,  val/test set are taken from a set of data recorded a few weeks after the training set. 
  This scenario aims to test the ability of the ANNs to generalize on a data set where electrodes are potentially shifted from their original location. 
  
-3. 3rd scenario: Monkey G + Monkey J
+3. 3rd scenario: Monkey G + Monkey J <br>
  We train the ANNs on recording aquired for Monkey G and we validate and test on Monkey J. 
  This scenario is the hardest we consider and it aims to test the ability of the ANNs to generalize the learning from one monkey brain to another. This    scenario tests the ability to generalize our results across animals in the same species.  
 
