@@ -27,18 +27,18 @@ The models are trained on a set of recordings referred to specific days, and the
 
 For these reasons, it would be easier to pick the recordings for the train/val/test set across days. We are yet interested in the ability of the ANNs to *generalize*, i.e. training of some data set and perform well on slightly different conditions of those in the training data set. For this reason, we never mix recordings from the same day across the train/val/test set. In other words, the train/val/test set are made of non-overlapping days and they are consecutive: the train set is made, for instance, by day 1-6, the validation set by day 7-8, and the test set by day 9-10. 
 
-1. 1st scenario: Monkey G 1st series <br>
+1. 1st scenario: Monkey G only, 1st series <br>
  We train the ANNs for only one monkey and we val/test on the same monkey. <br>
  Train/val/test set are taken from 7 consecutive days with 70% / 15% /15% split
  This scenario is the easiest of those that we consider. Val/test set are recorded consecutevely to the training set, therefore the recorded electrodes 
  are not shifted by much.
 
-2. 2nd scenario: Monkey G 1st + 2nd series <br>
+2. 2nd scenario: Monkey G only, 1st + 2nd series <br>
  We train the ANNs for only one monkey and we val/test on the same monkey. <br>
  Train set is taken from 7 consecutive days,  val/test set are taken from a set of data recorded a few weeks after the training set. 
  This scenario aims to test the ability of the ANNs to generalize on a data set where electrodes are potentially shifted from their original location. 
  
-3. 3rd scenario: Monkey G + Monkey J <br>
+3. 3rd scenario: Monkey G + Monkey J, 1st and 2nd series for both <br>
  We train the ANNs on recording aquired for Monkey G and we validate and test on Monkey J. 
  This scenario is the hardest we consider and it aims to test the ability of the ANNs to generalize the learning from one monkey brain to another. This    scenario tests the ability to generalize our results across animals in the same species.  
 
