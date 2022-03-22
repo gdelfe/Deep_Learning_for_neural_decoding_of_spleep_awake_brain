@@ -23,15 +23,23 @@ Different Artificial Neural Network models are used to test the performance of e
 6. Convolutional networks with self-attention mechanisms (e.g. Transformers) (CNN+Attention)
 
 **TRAIN / VALIDATION / TEST details :** <br>
-The models are trained on a set of recordings referred to specific days, and then validated and tested on recordings of other days. To be more specific, the test set goes from day 1-6, the validation set goes from day 7-8, and the test set from day 9-10. In this way testing represents 60% of the data, validation 20% and test 20% of the data respectively. Data for the training, validation, and test are taken in this way in order to have non-overlapping recordings, i.e. we want to prevent that recordings from the same day belong to both the training and validation (test) data set. In this way, the training of the ANN results more complex and harder but we do not introduce any bias. 
+The models are trained on a set of recordings referred to specific days, and then validated and tested on recordings of other days. Recordings (spectrograms) from the training set are never used for validation/test and the other way around. Indeed, electrodes placed in the monkey's cortex adjust their position across days, due to natural shift of brain tissues. That means that two consecutive days have more chance to have the electrodes in approximately the same positions. Days which are further apart, will have electrodes in slightly different positions.
 
-We test three different scenario:
-1. Training/validation/test 
+For these reasons, it would be easier to pick the recordings for the train/val/test set across days. We are yet interested in the ability of the ANNs to *generalize*, i.e. training of some data set and perform well on slightly different conditions of those in the training data set. For this reason, we never mix recordings from the same day across the train/val/test set. In other words, the train/val/test set are made of non-overlapping days and they are consecutive: the train set is made, for instance, by day 1-6, the validation set by day 7-8, and the test set by day 9-10. 
 
+1. 1st scenario: Monkey G 1st series <br>
+ We train the ANNs for only one monkey and we val/test on the same monkey. <br>
+ Train/val/test set are taken from 7 consecutive days with 70% / 15% /15% split
+ This scenario is the easiest of those that we consider. Val/test set are recorded consecutevely to the training set, therefore the recorded electrodes 
+ are not shifted by much.
 
-
-
+2. 2nd scenario: Monkey G 1st + 2nd series <br>
+ We train the ANNs for only one monkey and we val/test on the same monkey. <br>
+ Train set is taken from 7 consecutive days,  val/test set are taken from a set of data recorded a few weeks after the training set. 
+ This scenario aims to test the ability of the ANNs to generalize on a data set where electrodes are potentially shifted from their original location. 
  
-
+3. 3rd scenario: Monkey G + Monkey J
+ We train the ANNs on recording aquired for Monkey G and we validate and test on Monkey J. 
+ This scenario is the hardest we consider and it aims to test the ability of the ANNs to generalize the learning from one monkey brain to another. This    scenario tests the ability to generalize our results across animals in the same species.  
 
  
