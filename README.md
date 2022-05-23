@@ -15,7 +15,7 @@ micro-EcoG of the brain neural activity of two monkeys recorded in Motor cortex 
 
 **ANN MODELS:** <br>
 Different Artificial Neural Network models are used to test the performance of each classification model. These are:
-1. Linear Regression (used as a benchmark)
+1. Logistic Regression (used as a benchmark)
 2. Multilayer perceptron (MLP)
 3. Convolutional Neural Networks (CNNs)
 4. Recurrent Neural Network such as LSTM (RNN-LSTM)
