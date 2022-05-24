@@ -47,6 +47,8 @@ def create_files(load_path, val_dates, test_dates, bad_dates):
     sleep_files = os.listdir(load_path+'sleep/')
     move_files = os.listdir(load_path+'/move/')
 
+    # create list of sleep and movement files containing:
+    # name of file, movement (0/1), movement (sleep/move), date, rec, time)
     all_files = sleep_files+move_files
     for f in all_files:
         mvmt_type = f.split('_')[-1].split('.')[0]
@@ -64,9 +66,13 @@ def create_files(load_path, val_dates, test_dates, bad_dates):
         elif date in test_dates:
             test_files.append([f, label, mvmt_type, date, rec, time])
             
-    train_sleep = [i for i in train_files if i[1] == 1]
-    train_move = [i for i in train_files if i[1] == 0]
+            
+    pdb.set_trace()
+    # count sleep and move occurrencies 
+    train_sleep = [i for i in train_files if i[1] == 1]    # sleep occurrencies
+    train_move = [i for i in train_files if i[1] == 0]     # move occurrencies 
     diff = len(train_sleep)-len(train_move)
+    # upsample movement occurrencies 
     try:
         d = 0
         while d < diff:
@@ -76,7 +82,7 @@ def create_files(load_path, val_dates, test_dates, bad_dates):
             d += 1
     except ValueError:
         print('Movoment instance more than sleep instances!')
-    train_files = train_sleep+train_move
+    train_files = train_sleep+train_move   # total instances of training files 
             
     return train_files, val_files, test_files
     
