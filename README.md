@@ -2,7 +2,7 @@
 # Sleep/Awake classification of the monkey brain neural activity via Deep Learning 
 
 This project aims to use DEEP LEARNING tools to classify the monkey brain neural activity into sleep and awake states. 
-The cortical neural activity of two monkeys is recorded together with the video of the monkeys moving or sleeping in their cage. The video is used to define whether the monkeys are _sleeping_ or _awake_ and moving. Thus, the video provides the labels for a classification problem: sleep/awake. 
+The cortical neural activity of two monkeys is recorded together with the video of the monkeys moving or sleeping in their cage. The video is used to define whether the monkeys are _sleeping_ or _awake_ and moving. Thus, the video provides the labels for a classification problem: sleep/awake. The sleep/awake classification is done by using ** neural data only **, a much harder problem than using the whole polysomnography data (brain waves, blood oxygen level, heart rate and breathing, as well as eye and leg movements).
 
 **DATA:** <br>
 micro-EcoG of the brain neural activity of two monkeys recorded in Motor cortex (M1), Prefrontal Cortex (PFC), and sensory motor cortex (S1). The data covers several days (~15 days) for each monkey. Every day consists of several hours of continous wireless recording while the monkeys are in their cage (~9h each day).
