@@ -1,6 +1,8 @@
 
 # Sleep/Awake classification of the monkey brain neural activity via Deep Learning 
 
+(work done in collaboration with Bijan Pesaran, Carlos Fernandez-Granda, Yue Ma, Daisy He, Krishan Kumar. I am the lead scientist of this study.)
+
 This project aims to use DEEP LEARNING tools to classify the monkey brain neural activity into sleep and awake states. 
 The cortical neural activity of two monkeys is recorded together with the video of the monkeys moving or sleeping in their cage. The video is used to define whether the monkeys are _sleeping_ or _awake_ and moving. Thus, the video provides the labels for a classification problem: sleep/awake. 
 
